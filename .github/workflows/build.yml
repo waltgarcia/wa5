@@ -38,9 +38,9 @@ jobs:
             --arch=${{ matrix.arch }} \
             --out=dist \
             --overwrite \
-            --app-bundle-id=mx.walter.wa5 \
+            --app-bundle-id=io.github.wa5 \
             --icon=assets/icon.icns \
-            --ignore="^/(dist|docs|\.github)"
+            --ignore="^/(dist|docs|\.github|mcp)"
 
       - name: Comprimir
         run: |

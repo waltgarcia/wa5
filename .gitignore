@@ -13,6 +13,9 @@ Icon\r
 
 # datos locales del usuario
 cuentas.json
+control.json
+acceso.json
+Partitions/
 
 # logs y temporales
 *.log

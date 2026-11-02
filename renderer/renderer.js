@@ -82,3 +82,16 @@ window.wa.estado().then((data) => {
   estado = data;
   pintar();
 });
+
+// Avisar al proceso principal de que hay actividad, para que la contraseña solo
+// se pida después de varios minutos sin tocar la app.
+let ultimoAviso = 0;
+function avisarActividad() {
+  const ahora = Date.now();
+  if (ahora - ultimoAviso < 2000) return;
+  ultimoAviso = ahora;
+  window.wa.actividad();
+}
+for (const ev of ['mousemove', 'mousedown', 'keydown', 'wheel']) {
+  window.addEventListener(ev, avisarActividad, { passive: true });
+}

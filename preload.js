@@ -12,5 +12,6 @@ contextBridge.exposeInMainWorld('wa', {
   alCambiarCuentas: (fn) => ipcRenderer.on('estado:cuentas', (_e, data) => fn(data)),
   alCambiarNoLeidos: (fn) => ipcRenderer.on('estado:noLeidos', (_e, data) => fn(data)),
   alCambiarCarga: (fn) => ipcRenderer.on('estado:carga', (_e, data) => fn(data)),
+  actividad: () => ipcRenderer.send('wa5:actividad'),
   alPedirRenombrar: (fn) => ipcRenderer.on('ui:renombrar', (_e, id) => fn(id))
 });

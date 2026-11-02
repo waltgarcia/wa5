@@ -1,13 +1,17 @@
 // WA5 — hasta cinco cuentas de WhatsApp Web al mismo tiempo, cada una aislada.
 // Cada cuenta vive en su propia sesión persistente de Chromium: cookies, localStorage
 // e IndexedDB separados, así que nunca se pisan las sesiones entre números.
-const { app, BrowserWindow, WebContentsView, ipcMain, Menu, session, shell, nativeTheme, Notification } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, Menu, session, shell, nativeTheme, Notification, systemPreferences } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const seguridad = require('./seguridad');
 
 const SIDEBAR = 78;
 const MAX_CUENTAS = 5;
+// Minutos sin tocar la app antes de volver a pedir la contraseña.
+const MINUTOS_INACTIVIDAD = 5;
+const LIMITE_INACTIVIDAD = MINUTOS_INACTIVIDAD * 60 * 1000;
 const URL_WA = 'https://web.whatsapp.com/';
 const PALETA = ['#25D366', '#128C7E', '#0A84FF', '#D60079', '#F5A623'];
 
@@ -17,6 +21,9 @@ const dirDatos = () => app.getPath('userData');
 const ARCHIVO = () => path.join(dirDatos(), 'cuentas.json');
 
 let win = null;
+let ventanaAcceso = null;
+let desbloqueada = false;
+let boundsGuardados = null;
 let cuentas = [];                 // [{ id, nombre, color }]
 let activa = null;                // id de la cuenta visible
 const vistas = new Map();         // id -> WebContentsView
@@ -70,6 +77,7 @@ function crearVista(cuenta) {
   const v = new WebContentsView({
     webPreferences: {
       partition: particion(cuenta.id),
+      preload: path.join(__dirname, 'preload-wa.js'),
       contextIsolation: true,
       sandbox: true,
       spellcheck: true,
@@ -107,6 +115,7 @@ function crearVista(cuenta) {
   };
   wc.on('did-start-loading', () => avisarCarga('cargando'));
   wc.on('did-finish-load', () => avisarCarga('lista'));
+  wc.on('did-stop-loading', () => avisarCarga('lista'));
   wc.on('did-fail-load', (_e, codigo, desc, _url, esPrincipal) => {
     if (esPrincipal) avisarCarga('error');
   });
@@ -281,6 +290,113 @@ function zoom(id, delta) {
   v.webContents.setZoomLevel(Math.max(-2, Math.min(3, v.webContents.getZoomLevel() + delta)));
 }
 
+// ---------------------------------------------------------------- acceso
+// La app no abre WhatsApp hasta que se escribe la contraseña: la ventana
+// principal ni se crea, así que no hay conversaciones visibles detrás.
+let ultimaActividad = Date.now();
+let ultimoGuardado = 0;
+
+function marcarActividad() {
+  ultimaActividad = Date.now();
+  // No escribir en disco en cada tecla: basta con refrescar cada minuto.
+  if (ultimaActividad - ultimoGuardado > 60_000) {
+    ultimoGuardado = ultimaActividad;
+    seguridad.guardarActividad(dirDatos(), ultimaActividad);
+  }
+}
+
+// Cada 20 s se revisa si ya pasó el tiempo de inactividad. Si pasó, se bloquea.
+function vigilarInactividad() {
+  setInterval(() => {
+    if (!desbloqueada) return;
+    if (Date.now() - ultimaActividad >= LIMITE_INACTIVIDAD) {
+      console.log(`[wa5] ${MINUTOS_INACTIVIDAD} min sin actividad: se bloquea`);
+      bloquear();
+    } else if (Date.now() - ultimoGuardado > 60_000) {
+      // Se persiste la última actividad real (sin moverla), para que si cierras
+      // la app el plazo siga contando desde el último gesto.
+      ultimoGuardado = Date.now();
+      seguridad.guardarActividad(dirDatos(), ultimaActividad);
+    }
+  }, 20_000);
+}
+
+function mostrarAcceso() {
+  if (ventanaAcceso) { ventanaAcceso.focus(); return; }
+  desbloqueada = false;
+
+  ventanaAcceso = new BrowserWindow({
+    width: 420,
+    height: 560,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    title: 'WA5',
+    titleBarStyle: 'hiddenInset',
+    backgroundColor: '#0b141a',
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload-login.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+
+  ventanaAcceso.loadFile(path.join(__dirname, 'renderer', 'login.html'));
+  ventanaAcceso.once('ready-to-show', () => ventanaAcceso.show());
+  ventanaAcceso.on('closed', () => {
+    ventanaAcceso = null;
+    // Si se cierra la ventana de acceso sin entrar, la app se cierra: no hay
+    // forma de saltarse la contraseña dejándola a un lado.
+    if (!desbloqueada && !win) app.quit();
+  });
+}
+
+function arrancarApp() {
+  if (win) { win.focus(); return; }
+  const bounds = boundsGuardados || cargar();
+  crearVentana(bounds);
+  win.webContents.once('did-finish-load', () => {
+    if (cuentas.length === 0) agregarCuenta('Personal');
+    else activar(activa || cuentas[0].id);
+    precargar();
+  });
+}
+
+function entrar() {
+  desbloqueada = true;
+  marcarActividad();
+  seguridad.guardarActividad(dirDatos(), ultimaActividad);
+  if (ventanaAcceso) {
+    const v = ventanaAcceso;
+    ventanaAcceso = null;
+    v.destroy();
+  }
+  arrancarApp();
+}
+
+// Bloquear: se destruyen las vistas de WhatsApp (no quedan chats en memoria ni
+// en pantalla) y vuelve la pantalla de contraseña.
+function bloquear() {
+  if (!desbloqueada) return;
+  desbloqueada = false;
+  seguridad.olvidarActividad(dirDatos());
+  if (win) {
+    boundsGuardados = win.getBounds();
+    win.destroy();
+    win = null;
+  }
+  for (const [id, v] of vistas) {
+    try { v.webContents.close(); } catch { /* ya cerrada */ }
+    vistas.delete(id);
+  }
+  noLeidos.clear();
+  cargando.clear();
+  activa = null;
+  mostrarAcceso();
+}
+
 // ---------------------------------------------------------------- ventana
 function crearVentana(bounds) {
   win = new BrowserWindow({
@@ -321,6 +437,8 @@ function crearVentana(bounds) {
     enviarEstado();
     posicionar();
   });
+  win.webContents.on('before-input-event', () => { if (desbloqueada) marcarActividad(); });
+  win.on('focus', () => { if (desbloqueada) marcarActividad(); });
   win.on('closed', () => { win = null; });
 }
 
@@ -348,6 +466,12 @@ function instalarMenu() {
           label: 'Recargar cuenta activa',
           accelerator: 'CmdOrCtrl+R',
           click: () => { if (activa) recargar(activa); }
+        },
+        { type: 'separator' },
+        {
+          label: 'Bloquear ahora',
+          accelerator: 'CmdOrCtrl+L',
+          click: () => bloquear()
         }
       ]
     },
@@ -361,6 +485,58 @@ function instalarMenu() {
     }
   ]));
 }
+
+// ---------------------------------------------------------------- acceso (IPC)
+let verificador = null;
+const obtenerVerificador = () => {
+  if (!verificador) verificador = seguridad.crearVerificador(dirDatos());
+  return verificador;
+};
+
+ipcMain.handle('acceso:estado', () => {
+  const a = seguridad.leerAcceso(dirDatos());
+  let touchid = false;
+  try {
+    touchid = process.platform === 'darwin' && systemPreferences.canPromptTouchID();
+  } catch { /* Mac sin huella o sin sensor */ }
+  return { configurado: !!a, perfil: a ? a.perfil : null, touchid };
+});
+
+// Touch ID es un atajo cómodo, no la llave: la contraseña sigue siendo el
+// respaldo cuando falla, cuando se moja el dedo o cuando la Mac no lo tiene.
+ipcMain.handle('acceso:touchid', async () => {
+  try {
+    if (process.platform !== 'darwin' || !systemPreferences.canPromptTouchID()) {
+      return { ok: false, error: 'Esta Mac no tiene Touch ID disponible para la app.' };
+    }
+    await systemPreferences.promptTouchID('entrar a WA5');
+    entrar();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e && e.message ? e.message : 'No se pudo verificar la huella.' };
+  }
+});
+
+ipcMain.handle('acceso:configurar', (_e, { perfil, contrasena }) => {
+  try {
+    seguridad.configurar(dirDatos(), perfil, contrasena);
+    verificador = seguridad.crearVerificador(dirDatos());
+    entrar();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle('acceso:desbloquear', (_e, { contrasena }) => {
+  try {
+    obtenerVerificador()(contrasena);
+    entrar();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
 
 // ---------------------------------------------------------------- IPC
 ipcMain.handle('cuentas:estado', () => ({
@@ -394,22 +570,56 @@ ipcMain.handle('cuentas:menu', (_e, id) => {
 });
 
 // ---------------------------------------------------------------- arranque
+function iniciarControlLocal() {
+  try {
+    const { iniciarControl } = require('./control');
+    iniciarControl({
+      vistaDe: (id) => vistas.get(id) || null,
+      cuentas: () => cuentas,
+      activar,
+      rutaDatos: dirDatos(),
+      estaDesbloqueada: () => desbloqueada,
+      estado: () => ({
+        desbloqueada,
+        cuentas: cuentas.map(c => ({
+          id: c.id, nombre: c.nombre,
+          noLeidos: noLeidos.get(c.id) || 0,
+          carga: cargando.get(c.id) || (vistas.has(c.id) ? 'lista' : 'pendiente')
+        })),
+        activa, version: app.getVersion()
+      })
+    });
+  } catch (e) {
+    console.error('[wa5] no se pudo iniciar el control local:', e.message);
+  }
+}
+
 app.whenReady().then(() => {
   nativeTheme.themeSource = 'dark';
-  const bounds = cargar();
+  boundsGuardados = cargar();
   instalarMenu();
-  crearVentana(bounds);
+  iniciarControlLocal();
 
-  win.webContents.once('did-finish-load', () => {
-    if (cuentas.length === 0) agregarCuenta('Personal');
-    else activar(activa || cuentas[0].id);
-    precargar();
-  });
+  // Si la última actividad fue hace menos de MINUTOS_INACTIVIDAD, no se pide
+  // nada: la contraseña solo reaparece tras ese rato sin tocar la app.
+  const inactivo = seguridad.inactividadMs(dirDatos());
+  if (inactivo < LIMITE_INACTIVIDAD) {
+    desbloqueada = true;
+    ultimaActividad = Date.now() - inactivo;
+    ultimoGuardado = Date.now();
+    arrancarApp();
+  } else {
+    mostrarAcceso();
+  }
+  vigilarInactividad();
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) crearVentana(null);
+    if (!win && !ventanaAcceso) mostrarAcceso();
   });
 });
+
+// Cualquier gesto cuenta como actividad, venga de la barra lateral o de WhatsApp.
+ipcMain.on('wa5:actividad', () => { if (desbloqueada) marcarActividad(); });
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
