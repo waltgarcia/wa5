@@ -1,0 +1,30 @@
+{
+  "name": "wacinco",
+  "productName": "WAcinco",
+  "version": "1.0.0",
+  "description": "Hasta cinco cuentas de WhatsApp Web al mismo tiempo, cada una con su sesión aislada",
+  "main": "main.js",
+  "author": "Walter García Ortiz",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/waltgarcia/wacinco.git"
+  },
+  "keywords": [
+    "whatsapp",
+    "whatsapp-web",
+    "multi-cuenta",
+    "electron",
+    "macos",
+    "multi-account"
+  ],
+  "scripts": {
+    "start": "electron .",
+    "empaquetar": "electron-packager . WAcinco --platform=darwin --overwrite --out=dist --app-bundle-id=mx.walter.wacinco --app-version=1.0.0 --icon=assets/icon.icns --ignore=\"^/(dist|docs|\\.github)\"",
+    "postinstall": "echo 'Listo. Corre: npm start'"
+  },
+  "devDependencies": {
+    "electron": "^45.2.1",
+    "electron-packager": "^17.1.2"
+  }
+}

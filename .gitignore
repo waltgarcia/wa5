@@ -1,0 +1,19 @@
+# dependencias
+node_modules/
+
+# artefactos de empaquetado
+dist/
+out/
+*.dmg
+*.zip
+
+# macOS
+.DS_Store
+Icon\r
+
+# datos locales del usuario
+cuentas.json
+
+# logs y temporales
+*.log
+npm-debug.log*

@@ -1,0 +1,133 @@
+:root {
+  --barra: 78px;
+  --fondo: #111b21;
+  --panel: #202c33;
+  --texto: #e9edef;
+  --apagado: #8696a0;
+  --acento: #00a884;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--fondo);
+  color: var(--texto);
+  font-family: -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+
+body { display: flex; }
+
+/* ---------- barra lateral ---------- */
+#barra {
+  width: var(--barra);
+  min-width: var(--barra);
+  height: 100%;
+  background: #0b141a;
+  border-right: 1px solid #222d34;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 10px;
+  -webkit-app-region: drag;
+}
+
+#arrastre { height: 34px; width: 100%; }
+
+#cuentas {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  -webkit-app-region: no-drag;
+}
+
+.cuenta {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 17px;
+  color: #0b141a;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform .12s ease, border-color .12s ease, opacity .12s;
+  opacity: .92;
+}
+.cuenta:hover { transform: scale(1.06); opacity: 1; }
+.cuenta.activa { border-color: var(--texto); opacity: 1; }
+.cuenta .globo {
+  position: absolute;
+  top: -3px; right: -3px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: #f15c6d;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #0b141a;
+}
+
+#agregar {
+  margin-top: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.5px dashed #3d4f58;
+  background: transparent;
+  color: var(--apagado);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition: all .15s;
+}
+#agregar:hover:not(:disabled) { border-color: var(--acento); color: var(--acento); }
+#agregar:disabled { opacity: .3; cursor: not-allowed; }
+
+.espacio { flex: 1; }
+
+#pie {
+  font-size: 10px;
+  color: #4a5c66;
+  -webkit-app-region: no-drag;
+}
+
+/* ---------- área de contenido (la llena la vista web) ---------- */
+#area {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--fondo);
+}
+
+#vacio { text-align: center; max-width: 380px; padding: 24px; }
+#vacio .logo {
+  width: 76px;
+  height: 76px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  background: var(--acento);
+  color: #0b141a;
+  font-size: 38px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#vacio h1 { font-size: 22px; margin-bottom: 10px; font-weight: 700; letter-spacing: -.2px; }
+#vacio p { color: var(--apagado); font-size: 14px; line-height: 1.6; }
+#vacio b { color: var(--acento); }
