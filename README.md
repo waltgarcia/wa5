@@ -152,6 +152,26 @@ cost you your number; leaving it out is deliberate.
 - The control server only answers while the app is open and unlocked.
 - To read an account, the app brings it to the front: it is visible that the agent looked.
 
+## Upgrading from 1.3 or earlier
+
+Version 1.4.0 renamed the desktop data files from Spanish to English:
+
+| Before | Now |
+|---|---|
+| `cuentas.json` | `accounts.json` |
+| `acceso.json` | `access.json` |
+| `sesion.json` | `session.json` |
+
+The app renames them on first launch and rewrites the keys inside `accounts.json`, so your
+accounts, the active one and the window position survive — and no QR code has to be scanned
+again.
+
+One file is deliberately left alone: `access.json` may still carry the old field names
+(`perfil`, `sal`, `iteraciones`, `creado`). `security.js` reads both spellings, so your
+password keeps working exactly as before; the file switches to the English names the next
+time you set the password up again. Rewriting it automatically would have meant touching a
+hash that cannot be verified without knowing the password, so it is not done.
+
 ## How it works
 
 ```
