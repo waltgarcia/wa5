@@ -21,6 +21,7 @@ let cuentas = [];                 // [{ id, nombre, color }]
 let activa = null;                // id de la cuenta visible
 const vistas = new Map();         // id -> WebContentsView
 const noLeidos = new Map();       // id -> número
+const cargando = new Map();       // id -> 'cargando' | 'lista' | 'error'
 
 // ---------------------------------------------------------------- persistencia
 function cargar() {
@@ -53,11 +54,13 @@ function particion(id) { return 'persist:wa-' + id; }
 
 function prepararSesion(id) {
   const s = session.fromPartition(particion(id));
-  // WhatsApp Web necesita notificaciones y, para llamadas, cámara y micrófono.
-  s.setPermissionRequestHandler((_wc, permiso, callback) => {
-    callback(['notifications', 'media', 'clipboard-read', 'clipboard-sanitized-write', 'fullscreen'].includes(permiso));
-  });
-  s.setPermissionCheckHandler((_wc, permiso) => ['notifications', 'media'].includes(permiso));
+  // WhatsApp Web necesita notificaciones, cámara/micrófono para llamadas y —clave—
+  // almacenamiento persistente ('durable-storage'). Sin ese permiso Chromium niega
+  // el bucket persistente y la app se queda para siempre en "Cargando tus chats…".
+  // Se permite todo lo que la app web pueda pedir salvo lo que no tiene por qué usar.
+  const BLOQUEADOS = new Set(['geolocation', 'midi', 'midiSysex', 'hid', 'serial', 'usb', 'openExternal']);
+  s.setPermissionRequestHandler((_wc, permiso, callback) => callback(!BLOQUEADOS.has(permiso)));
+  s.setPermissionCheckHandler((_wc, permiso) => !BLOQUEADOS.has(permiso));
   return s;
 }
 
@@ -95,6 +98,20 @@ function crearVista(cuenta) {
       if (n > antes && cuenta.id !== activa) avisar(cuenta, t);
     }
   };
+
+  // Estado de carga: mientras una cuenta arranca desde cero el usuario necesita
+  // ver que algo pasa; sin esto la ventana parece congelada.
+  const avisarCarga = (estado) => {
+    cargando.set(cuenta.id, estado);
+    if (win && !win.isDestroyed()) win.webContents.send('estado:carga', { id: cuenta.id, estado });
+  };
+  wc.on('did-start-loading', () => avisarCarga('cargando'));
+  wc.on('did-finish-load', () => avisarCarga('lista'));
+  wc.on('did-fail-load', (_e, codigo, desc, _url, esPrincipal) => {
+    if (esPrincipal) avisarCarga('error');
+  });
+  wc.on('render-process-gone', () => avisarCarga('error'));
+
 
   wc.on('page-title-updated', (_e, t) => refrescarNoLeidos(t));
   wc.on('did-finish-load', () => refrescarNoLeidos(wc.getTitle()));
@@ -138,7 +155,11 @@ function posicionar() {
 function enviarEstado() {
   if (!win || win.isDestroyed()) return;
   win.webContents.send('estado:cuentas', {
-    cuentas: cuentas.map(c => ({ ...c, noLeidos: noLeidos.get(c.id) || 0 })),
+    cuentas: cuentas.map(c => ({
+      ...c,
+      noLeidos: noLeidos.get(c.id) || 0,
+      carga: cargando.get(c.id) || (vistas.has(c.id) ? 'lista' : 'pendiente')
+    })),
     activa,
     max: MAX_CUENTAS
   });
@@ -156,6 +177,24 @@ function activar(id) {
   const v = vistas.get(id);
   if (v) v.webContents.focus();
   enviarEstado();
+}
+
+// Precarga en segundo plano las cuentas que todavía no tienen vista, para que al
+// cambiar a ellas no arranquen desde cero. Se hace de una en una y espaciado para
+// no competir con la cuenta que el usuario está usando.
+function precargar() {
+  const pendientes = cuentas.filter(c => !vistas.has(c.id));
+  pendientes.forEach((cuenta, i) => {
+    setTimeout(() => {
+      if (!win || win.isDestroyed() || vistas.has(cuenta.id)) return;
+      crearVista(cuenta);
+      posicionar();
+      enviarEstado();
+    }, 3000 + i * 4000);
+  });
+  if (pendientes.length) {
+    console.log('[wa5] precargando', pendientes.map(c => c.nombre).join(', '));
+  }
 }
 
 function agregarCuenta(nombre) {
@@ -208,6 +247,26 @@ async function eliminar(id, borrarDatos = true) {
 function recargar(id) {
   const v = vistas.get(id);
   if (v) v.webContents.reload();
+}
+
+// Repara una cuenta atorada en "Cargando tus chats…". Borra caché y service
+// workers de esa partición —lo que se corrompe— pero CONSERVA cookies e
+// IndexedDB, así que la sesión no se pierde y no hay que volver a escanear.
+async function reparar(id) {
+  const v = vistas.get(id);
+  try {
+    const s = session.fromPartition(particion(id));
+    await s.clearStorageData({ storages: ['serviceworkers', 'cachestorage'] });
+    await s.clearCache();
+  } catch (e) {
+    console.error('[wa5] reparar:', e.message);
+  }
+  if (v) {
+    cargando.set(id, 'cargando');
+    enviarEstado();
+    v.webContents.reload();
+  }
+  return { ok: true };
 }
 
 async function cerrarSesion(id) {
@@ -305,7 +364,11 @@ function instalarMenu() {
 
 // ---------------------------------------------------------------- IPC
 ipcMain.handle('cuentas:estado', () => ({
-  cuentas: cuentas.map(c => ({ ...c, noLeidos: noLeidos.get(c.id) || 0 })),
+  cuentas: cuentas.map(c => ({
+    ...c,
+    noLeidos: noLeidos.get(c.id) || 0,
+    carga: cargando.get(c.id) || (vistas.has(c.id) ? 'lista' : 'pendiente')
+  })),
   activa, max: MAX_CUENTAS
 }));
 ipcMain.handle('cuentas:agregar', (_e, nombre) => agregarCuenta(nombre));
@@ -318,6 +381,7 @@ ipcMain.handle('cuentas:menu', (_e, id) => {
   Menu.buildFromTemplate([
     { label: 'Renombrar…', click: () => win.webContents.send('ui:renombrar', id) },
     { label: 'Recargar', click: () => recargar(id) },
+    { label: 'Reparar si se queda cargando', click: () => reparar(id) },
     { label: 'Cerrar sesión de esta cuenta', click: () => cerrarSesion(id) },
     { type: 'separator' },
     { label: 'Acercar', click: () => zoom(id, 0.5) },
@@ -339,6 +403,7 @@ app.whenReady().then(() => {
   win.webContents.once('did-finish-load', () => {
     if (cuentas.length === 0) agregarCuenta('Personal');
     else activar(activa || cuentas[0].id);
+    precargar();
   });
 
   app.on('activate', () => {

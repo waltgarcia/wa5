@@ -4,7 +4,6 @@
   "version": "1.0.0",
   "description": "Hasta cinco cuentas de WhatsApp Web al mismo tiempo, cada una con su sesión aislada",
   "main": "main.js",
-  "author": "Walter García Ortiz",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -20,11 +19,11 @@
   ],
   "scripts": {
     "start": "electron .",
-    "empaquetar": "electron-packager . WA5 --platform=darwin --overwrite --out=dist --app-bundle-id=mx.walter.wa5 --app-version=1.0.0 --icon=assets/icon.icns --ignore=\"^/(dist|docs|\\.github)\"",
+    "empaquetar": "electron-packager . WA5 --platform=darwin --overwrite --out=dist --app-bundle-id=io.github.wa5 --app-version=1.0.0 --icon=assets/icon.icns --ignore=\"^/(dist|docs|\\.github)\"",
     "postinstall": "echo 'Listo. Corre: npm start'"
   },
   "devDependencies": {
-    "electron": "^45.2.1",
-    "electron-packager": "^17.1.2"
+    "@electron/packager": "^20.3.0",
+    "electron": "^45.2.1"
   }
 }

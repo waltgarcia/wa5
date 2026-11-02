@@ -15,8 +15,13 @@ function pintar() {
   for (const cuenta of estado.cuentas) {
     const div = document.createElement('div');
     div.className = 'cuenta' + (cuenta.id === estado.activa ? ' activa' : '');
+    if (cuenta.carga === 'cargando') div.classList.add('cargando');
+    if (cuenta.carga === 'error') div.classList.add('fallo');
     div.style.background = cuenta.color || '#25D366';
-    div.title = cuenta.nombre + '\nClic: abrir · Clic derecho: opciones';
+    let pista = 'Clic: abrir · Clic derecho: opciones';
+    if (cuenta.carga === 'cargando') pista = 'Cargando WhatsApp…';
+    if (cuenta.carga === 'error') pista = 'No cargó. Clic derecho → Recargar';
+    div.title = cuenta.nombre + '\n' + pista;
     div.textContent = inicial(cuenta.nombre);
     if (cuenta.noLeidos > 0) {
       const globo = document.createElement('span');
@@ -58,6 +63,11 @@ window.wa.alCambiarCuentas((data) => {
 window.wa.alCambiarNoLeidos(({ id, n }) => {
   const c = estado.cuentas.find(x => x.id === id);
   if (c) { c.noLeidos = n; pintar(); }
+});
+
+window.wa.alCambiarCarga(({ id, estado: fase }) => {
+  const c = estado.cuentas.find(x => x.id === id);
+  if (c) { c.carga = fase; pintar(); }
 });
 
 window.wa.alPedirRenombrar(async (id) => {
