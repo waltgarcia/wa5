@@ -166,11 +166,33 @@ The app renames them on first launch and rewrites the keys inside `accounts.json
 accounts, the active one and the window position survive — and no QR code has to be scanned
 again.
 
-One file is deliberately left alone: `access.json` may still carry the old field names
-(`perfil`, `sal`, `iteraciones`, `creado`). `security.js` reads both spellings, so your
-password keeps working exactly as before; the file switches to the English names the next
-time you set the password up again. Rewriting it automatically would have meant touching a
-hash that cannot be verified without knowing the password, so it is not done.
+One file is not rewritten on its own: `access.json` written before 1.4.0 still carries the
+old field names (`perfil`, `sal`, `iteraciones`, `creado`). `security.js` reads both
+spellings, so the password keeps working exactly as before, and the file switches to the
+English names the next time the password is set up again. Rewriting it automatically would
+mean touching a hash that cannot be verified without knowing the password, so the app does
+not do it.
+
+If you want the file in English right away, it is safe to rename the keys by hand — copy the
+values byte for byte and leave `hash`, `salt` and `iterations` untouched:
+
+```bash
+# access.json lives in ~/Library/Application Support/WA5/
+python3 - <<'PY'
+import json, os
+p = os.path.expanduser('~/Library/Application Support/WA5/access.json')
+d = json.load(open(p))
+m = {'perfil': 'profile', 'sal': 'salt', 'iteraciones': 'iterations', 'creado': 'created'}
+out = {m.get(k, k): v for k, v in d.items()}
+tmp = p + '.tmp'
+json.dump(out, open(tmp, 'w'), indent=2)
+os.chmod(tmp, 0o600)
+os.replace(tmp, p)   # atomic: the old file is never left half written
+PY
+```
+
+Check afterwards that `readAccess()` returns the same `hash`: if the password still works,
+nothing changed.
 
 ## How it works
 
