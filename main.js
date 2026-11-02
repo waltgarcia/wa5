@@ -1,4 +1,4 @@
-// WAcinco — hasta cinco cuentas de WhatsApp Web al mismo tiempo, cada una aislada.
+// WA5 — hasta cinco cuentas de WhatsApp Web al mismo tiempo, cada una aislada.
 // Cada cuenta vive en su propia sesión persistente de Chromium: cookies, localStorage
 // e IndexedDB separados, así que nunca se pisan las sesiones entre números.
 const { app, BrowserWindow, WebContentsView, ipcMain, Menu, session, shell, nativeTheme, Notification } = require('electron');
@@ -11,7 +11,7 @@ const MAX_CUENTAS = 5;
 const URL_WA = 'https://web.whatsapp.com/';
 const PALETA = ['#25D366', '#128C7E', '#0A84FF', '#D60079', '#F5A623'];
 
-app.setName('WAcinco');
+app.setName('WA5');
 
 const dirDatos = () => app.getPath('userData');
 const ARCHIVO = () => path.join(dirDatos(), 'cuentas.json');
@@ -44,7 +44,7 @@ function guardar() {
     })();
     fs.writeFileSync(ARCHIVO(), JSON.stringify({ cuentas, activa, ventana: previo.ventana || null }, null, 1));
   } catch (e) {
-    console.error('[wacinco] no se pudo guardar:', e.message);
+    console.error('[wa5] no se pudo guardar:', e.message);
   }
 }
 
@@ -81,7 +81,7 @@ function crearVista(cuenta) {
   wc.setUserAgent(
     wc.getUserAgent()
       .replace(/Electron\/[\d.]+\s/, '')
-      .replace(/wacinco\/[\d.]+\s/i, '')
+      .replace(/wa5\/[\d.]+\s/i, '')
   );
 
   const refrescarNoLeidos = (titulo) => {
@@ -231,7 +231,7 @@ function crearVentana(bounds) {
     y: bounds ? bounds.y : undefined,
     minWidth: 900,
     minHeight: 600,
-    title: 'WAcinco',
+    title: 'WA5',
     titleBarStyle: 'hiddenInset',
     backgroundColor: '#111b21',
     webPreferences: {
@@ -297,7 +297,7 @@ function instalarMenu() {
     {
       role: 'help',
       submenu: [
-        { label: 'WAcinco en GitHub', click: () => shell.openExternal('https://github.com/waltgarcia/wacinco') }
+        { label: 'WA5 en GitHub', click: () => shell.openExternal('https://github.com/waltgarcia/wa5') }
       ]
     }
   ]));

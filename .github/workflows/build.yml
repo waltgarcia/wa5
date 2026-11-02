@@ -33,25 +33,25 @@ jobs:
 
       - name: Empaquetar app (${{ matrix.arch }})
         run: |
-          npx electron-packager . WAcinco \
+          npx electron-packager . WA5 \
             --platform=darwin \
             --arch=${{ matrix.arch }} \
             --out=dist \
             --overwrite \
-            --app-bundle-id=mx.walter.wacinco \
+            --app-bundle-id=mx.walter.wa5 \
             --icon=assets/icon.icns \
             --ignore="^/(dist|docs|\.github)"
 
       - name: Comprimir
         run: |
           cd dist
-          for d in WAcinco-darwin-*; do
+          for d in WA5-darwin-*; do
             zip -qry "${d}.zip" "${d}"
           done
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wacinco-macos-${{ matrix.arch }}
+          name: wa5-macos-${{ matrix.arch }}
           path: dist/*.zip
           if-no-files-found: error
 
