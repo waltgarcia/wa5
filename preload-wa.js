@@ -1,19 +1,19 @@
-// Preload mínimo que se inyecta en la página de WhatsApp de cada cuenta.
+// Minimal preload injected into each account's WhatsApp page.
 //
-// No expone nada a la página: solo escucha gestos del usuario y avisa al proceso
-// principal para que la app sepa si hay actividad real. Así la contraseña se pide
-// únicamente después de varios minutos sin tocar nada.
+// It exposes nothing to the page: it only listens for user gestures and tells the
+// main process whether there is real activity. That way the password is only asked
+// for after several minutes without touching anything.
 const { ipcRenderer } = require('electron');
 
-let ultimo = 0;
+let last = 0;
 
-function avisar() {
-  const ahora = Date.now();
-  if (ahora - ultimo < 2000) return; // no más de un aviso cada 2 s
-  ultimo = ahora;
-  try { ipcRenderer.send('wa5:actividad'); } catch { /* app cerrándose */ }
+function signal() {
+  const now = Date.now();
+  if (now - last < 2000) return; // no more than one signal every 2 s
+  last = now;
+  try { ipcRenderer.send('wa5:activity'); } catch { /* app is shutting down */ }
 }
 
-for (const evento of ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart', 'scroll']) {
-  window.addEventListener(evento, avisar, { capture: true, passive: true });
+for (const event of ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart', 'scroll']) {
+  window.addEventListener(event, signal, { capture: true, passive: true });
 }

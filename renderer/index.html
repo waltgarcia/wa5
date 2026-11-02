@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
@@ -7,19 +7,19 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <aside id="barra">
-    <div id="arrastre"></div>
-    <div id="cuentas"></div>
-    <button id="agregar" title="Agregar cuenta">+</button>
-    <div class="espacio"></div>
-    <div id="pie">0/5</div>
+  <aside id="sidebar">
+    <div id="drag-area"></div>
+    <div id="accounts"></div>
+    <button id="add-account" title="Add account">+</button>
+    <div class="spacer"></div>
+    <div id="footer">0/5</div>
   </aside>
-  <main id="area">
-    <div id="vacio">
+  <main id="view">
+    <div id="empty">
       <div class="logo">5</div>
       <h1>WA5</h1>
-      <p>Hasta cinco cuentas de WhatsApp al mismo tiempo.<br />
-         Toca el <b>+</b> de la izquierda para agregar la primera.</p>
+      <p>Up to five WhatsApp accounts at the same time.<br />
+         Click the <b>+</b> on the left to add the first one.</p>
     </div>
   </main>
   <script src="renderer.js"></script>

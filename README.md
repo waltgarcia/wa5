@@ -1,42 +1,42 @@
 # WA5
 
-**Hasta cinco cuentas de WhatsApp Web al mismo tiempo, en una sola app de macOS.**
+**Up to five WhatsApp Web accounts at the same time, in a single macOS app.**
 
-Cada cuenta corre en su propia sesión de Chromium —cookies, `localStorage` e `IndexedDB`
-separados— así que ningún número ve ni pisa la sesión de otro. Cambias de cuenta con un
-clic o con `⌘1` … `⌘5`.
+Each account runs in its own Chromium session —separate cookies, `localStorage` and
+`IndexedDB`— so no number ever sees or overwrites another's session. Switch accounts with
+one click or with `⌘1` … `⌘5`.
 
-> Proyecto independiente. No está afiliado, patrocinado ni respaldado por WhatsApp LLC ni
-> por Meta Platforms, Inc. «WhatsApp» es una marca registrada de sus titulares.
+> Independent project. Not affiliated with, sponsored by, or endorsed by WhatsApp LLC or
+> Meta Platforms, Inc. “WhatsApp” is a trademark of its respective owners.
 
-![WA5 con cuatro cuentas en la barra lateral](docs/captura.png)
+![WA5 with four accounts in the sidebar](docs/screenshot.png)
 
 ---
 
-## Qué hace
+## What it does
 
-- **Cinco cuentas simultáneas**, cada una con login independiente y persistente.
-- **Aislamiento real de sesión**: cada cuenta vive en una partición `persist:wa-<id>`
-  distinta. Nada de perfiles de navegador ni ventanas sueltas.
-- **Contraseña de entrada** con perfil fijo y **Touch ID** opcional (ver más abajo).
-- **Cambio instantáneo** desde la barra lateral o con `⌘1` … `⌘5`.
-- **Contador de no leídos** por cuenta y suma total en el badge del Dock.
-- **Notificación nativa** cuando entra un mensaje a una cuenta que no está a la vista.
-- **Servidor de control local** opcional para que un agente lea y deje borradores.
-- **Cerrar sesión** o **eliminar** una cuenta borrando de verdad sus datos locales.
-- **Zoom independiente** por cuenta (`⌘+`, `⌘-`, `⌘0`).
-- Cero telemetría: WA5 no manda nada a ningún servidor. Todo vive en tu Mac.
+- **Five simultaneous accounts**, each with its own independent, persistent login.
+- **Real session isolation**: every account lives in a different `persist:wa-<id>`
+  partition. No browser profiles, no loose windows.
+- **Entry password** with a fixed profile name and optional **Touch ID** (see below).
+- **Instant switching** from the sidebar or with `⌘1` … `⌘5`.
+- **Unread counters** per account, plus the total in the Dock badge.
+- **Native notification** when a message arrives in an account that is not on screen.
+- **Local control server** (optional) so an agent can read chats and leave drafts.
+- **Log out** or **remove** an account, actually deleting its local data.
+- **Independent zoom** per account (`⌘+`, `⌘-`, `⌘0`).
+- Zero telemetry: WA5 sends nothing to any server. Everything stays on your Mac.
 
-## Lo que no hace
+## What it does not do
 
-- No crea cuentas de WhatsApp: usas números que ya tienes.
-- No evade las reglas de WhatsApp; la app carga `web.whatsapp.com` tal cual.
-- No funciona sin internet ni sin el teléfono vinculado, igual que WhatsApp Web.
-- **No envía mensajes por su cuenta.** El servidor de control solo escribe borradores.
+- It does not create WhatsApp accounts: you use numbers you already have.
+- It does not bypass WhatsApp's rules; the app simply loads `web.whatsapp.com`.
+- It does not work without internet or without the linked phone, just like WhatsApp Web.
+- **It never sends messages on its own.** The control server only writes drafts.
 
-## Instalar
+## Install
 
-Requiere macOS 11 o superior y Node 18 o superior.
+Requires macOS 11 or later and Node 18 or later.
 
 ```bash
 git clone https://github.com/waltgarcia/wa5.git
@@ -45,146 +45,144 @@ npm install
 npm start
 ```
 
-### Generar el .app
+### Build the .app
 
 ```bash
-npm run empaquetar      # deja dist/WA5-darwin-arm64/WA5.app
+npm run build           # leaves dist/WA5-darwin-arm64/WA5.app
 cp -R dist/WA5-darwin-arm64/WA5.app /Applications/
-./reinstalar.sh         # o el script, que hace lo anterior y la abre
+./reinstall.sh          # or run the script, which does both and opens it
 ```
 
-La primera vez que abras el `.app` sin firma, macOS pedirá confirmación:
-clic derecho sobre el ícono → **Abrir**.
+The first time you open the unsigned `.app`, macOS will ask for confirmation:
+right-click the icon → **Open**.
 
-## Contraseña de entrada y Touch ID
+## Entry password and Touch ID
 
-En el primer arranque la app pide dos cosas:
+On first launch the app asks for two things:
 
-1. **Nombre del perfil** — se guarda una vez y ya no se pregunta más.
-2. **Contraseña local** — mínimo 6 caracteres.
+1. **Profile name** — stored once, never asked again.
+2. **Local password** — at least 6 characters.
 
-Sin eso no se crea la ventana de WhatsApp: no hay conversaciones detrás de la puerta.
-La contraseña se guarda como hash **scrypt** (sal aleatoria de 16 bytes, 16 384
-iteraciones) en `~/Library/Application Support/WA5/acceso.json` con permisos `600`.
-El texto de la contraseña nunca se escribe en disco.
+Without them the WhatsApp window is never created: there are no conversations behind the
+door. The password is stored as a **scrypt** hash (16-byte random salt, 16,384 iterations)
+in `~/Library/Application Support/WA5/access.json` with `600` permissions. The password
+text itself is never written to disk.
 
-**Solo se pide una vez**: mientras uses la app no vuelve a aparecer. Reaparece cuando
-pasan **5 minutos sin tocar nada** (ni mouse, ni teclado, ni cambio de cuenta), y
-también si cierras la app y la vuelves a abrir después de ese rato. El plazo se cuenta
-desde tu último gesto real, se mide dentro de cada cuenta de WhatsApp y en la barra
-lateral, y la marca que lo recuerda va firmada con el hash, así que editarla a mano no
-sirve para saltarse la contraseña.
+**It is only asked once**: while you use the app it does not come back. It reappears when
+**5 minutes pass without touching anything** (no mouse, no keyboard, no account switch),
+and also if you quit the app and reopen it after that long. The countdown runs from your
+last real gesture, it is measured both in the sidebar and inside each WhatsApp account, and
+the marker that remembers it is signed with the hash, so editing it by hand will not get you
+past the password.
 
-En Macs con sensor, aparece además **Usar Touch ID**, que desbloquea con la huella.
-La contraseña sigue funcionando como respaldo: Touch ID depende de que la huella esté
-configurada en esa Mac y de que el sensor responda.
+On Macs with a sensor, **Use Touch ID** also appears, unlocking with your fingerprint. The
+password still works as a fallback: Touch ID depends on the fingerprint being enrolled on
+that Mac and on the sensor responding.
 
-`⌘L` bloquea la app al instante: se destruyen las vistas de WhatsApp y vuelve la
-pantalla de contraseña.
+`⌘L` locks the app instantly: the WhatsApp views are destroyed and the password screen
+returns.
 
-Tras 5 fallos seguidos la app espera 30 segundos antes de aceptar otro intento.
+After 5 failed attempts in a row the app waits 30 seconds before accepting another try.
 
-> Si olvidas la contraseña, borra `acceso.json` y vuelve a configurarla. Las sesiones de
-> WhatsApp no se pierden, porque viven en otra carpeta.
+> If you forget the password, delete `access.json` and set it up again. WhatsApp sessions
+> are not lost, because they live in a different folder.
 
-## Instalar y usar las cuentas
+## Adding and using accounts
 
-1. Abre la app, configura el acceso y entra. Se crea sola la cuenta **Personal**.
-2. En el teléfono: WhatsApp → **Dispositivos vinculados** → *Vincular un dispositivo*.
-3. Escanea el QR. Repite con el **+** de la barra lateral para cada cuenta nueva.
-4. Clic derecho sobre un círculo de la barra: renombrar, recargar, reparar, cerrar
-   sesión, zoom o eliminar cuenta.
+1. Open the app, set up access and enter. An account called **Personal** is created for you.
+2. On your phone: WhatsApp → **Linked devices** → *Link a device*.
+3. Scan the QR code. Repeat with the **+** in the sidebar for each new account.
+4. Right-click a circle in the sidebar: rename, reload, repair, log out, zoom or remove.
 
-| Atajo | Acción |
+| Shortcut | Action |
 |---|---|
-| `⌘1` … `⌘5` | Ir a la cuenta 1–5 |
-| `⌘⇧N` | Agregar cuenta |
-| `⌘R` | Recargar la cuenta activa |
-| `⌘L` | Bloquear la app |
-| `⌘+` / `⌘-` / `⌘0` | Zoom de la cuenta activa |
+| `⌘1` … `⌘5` | Go to account 1–5 |
+| `⌘⇧N` | Add account |
+| `⌘R` | Reload the active account |
+| `⌘L` | Lock the app |
+| `⌘+` / `⌘-` / `⌘0` | Zoom the active account |
 
-### Si una cuenta se queda en «Cargando tus chats…»
+### If an account gets stuck on “Loading your chats…”
 
-Es la caché o el service worker de esa partición, no tu sesión. Clic derecho sobre la
-cuenta → **Reparar si se queda cargando**. Borra caché y service workers pero conserva
-cookies e `IndexedDB`, así que **no hay que volver a escanear el QR**.
+It is that partition's cache or service worker, not your session. Right-click the account →
+**Repair if stuck loading**. It clears cache and service workers but keeps cookies and
+`IndexedDB`, so **you do not need to scan the QR code again**.
 
-## Control local para agentes (opcional)
+## Local control for agents (optional)
 
-La app levanta un servidor HTTP en `127.0.0.1:5077` que solo acepta peticiones de la
-misma Mac y exige un token que se genera la primera vez en
-`~/Library/Application Support/WA5/control.json` (permisos `600`, fuera del repo).
+The app starts an HTTP server on `127.0.0.1:5077` that only accepts requests from the same
+Mac and requires a token generated on first run in
+`~/Library/Application Support/WA5/control.json` (`600` permissions, outside the repo).
 
-| Ruta | Qué hace |
+| Route | What it does |
 |---|---|
-| `GET /estado` | cuentas, no leídos y si la app está desbloqueada |
-| `GET /pendientes?cuenta=X` | chats con mensajes sin leer |
-| `GET /leer?cuenta=X&chat=Y&n=20` | últimos mensajes de una conversación |
-| `POST /borrador` | escribe un texto en la caja, **sin enviarlo** |
-| `GET /diag` | diagnóstico de la vista (para depurar selectores) |
+| `GET /state` | accounts, unread counts and whether the app is unlocked |
+| `GET /pending?account=X` | chats with unread messages |
+| `GET /read?account=X&chat=Y&n=20` | last messages of a conversation |
+| `POST /draft` | writes text into the message box, **without sending it** |
+| `GET /diag` | view diagnostics (for debugging selectors) |
 
-Con la app bloqueada el servidor responde `423`: el agente no ve nada hasta que
-desbloquees.
+With the app locked the server answers `423`: the agent sees nothing until you unlock.
 
-### Servidor MCP
+### MCP server
 
-`mcp/servidor.mjs` expone el control como herramientas MCP (`wa5_cuentas`,
-`wa5_pendientes`, `wa5_leer`, `wa5_borrador`). Para usarlo con un cliente MCP, regístralo
-como servidor por stdio:
+`mcp/servidor.mjs` exposes that control as MCP tools (`wa5_accounts`, `wa5_pending`,
+`wa5_read`, `wa5_draft`). To use it with an MCP client, register it as a stdio server:
 
 ```json
 {
   "mcpServers": {
     "wa5": {
       "command": "node",
-      "args": ["/ruta/absoluta/a/wa5/mcp/servidor.mjs"]
+      "args": ["/absolute/path/to/wa5/mcp/servidor.mjs"]
     }
   }
 }
 ```
 
-**No existe herramienta de envío.** `wa5_borrador` deja el texto escrito y el chat
-abierto para que la persona lo revise y dé Enter. Automatizar el envío va contra los
-términos de WhatsApp y puede costarte el número; dejarlo fuera es deliberado.
+**There is no send tool.** `wa5_draft` leaves the text typed in and the chat open so the
+person can review it and press Enter. Automating sending violates WhatsApp's terms and can
+cost you your number; leaving it out is deliberate.
 
-### Límites que conviene saber
+### Limits worth knowing
 
-- Leer una conversación la **marca como leída** en WhatsApp: hay que abrirla.
-- Los selectores dependen del DOM de WhatsApp Web. Cuando Meta los cambie, hay que
-  ajustar unas líneas de `control.js` (`/diag` ayuda a encontrarlos).
-- El servidor de control solo responde con la app abierta y desbloqueada.
-- Para leer una cuenta, la app la trae al frente: es visible que el agente la consultó.
+- Reading a conversation **marks it as read** in WhatsApp: the chat has to be opened.
+- The selectors depend on WhatsApp Web's DOM. When Meta changes them, a few lines of
+  `control.js` need adjusting (`/diag` helps you find them).
+- The control server only answers while the app is open and unlocked.
+- To read an account, the app brings it to the front: it is visible that the agent looked.
 
-## Cómo funciona
+## How it works
 
 ```
-main.js                  proceso principal: ventana, cuentas y sesiones
- ├─ BrowserWindow        dibuja solo la barra lateral (renderer/)
- ├─ WebContentsView ×N   una vista web por cuenta, aislada por partición
- └─ session.fromPartition('persist:wa-<id>')   cookies + storage por número
-seguridad.js             contraseña scrypt y verificación con límite de intentos
-control.js               servidor HTTP local para agentes
-mcp/servidor.mjs         servidor MCP por stdio (no va dentro del .app)
-preload.js               puente IPC con contextIsolation (sin nodeIntegration)
-renderer/                barra lateral y pantalla de acceso
+main.js                  main process: window, accounts and sessions
+ ├─ BrowserWindow        draws only the sidebar (renderer/)
+ ├─ WebContentsView ×N   one web view per account, isolated by partition
+ └─ session.fromPartition('persist:wa-<id>')   cookies + storage per number
+security.js             scrypt password and verification with attempt limit
+control.js               local HTTP server for agents
+mcp/servidor.mjs         stdio MCP server (not bundled inside the .app)
+preload.js               IPC bridge with contextIsolation (no nodeIntegration)
+renderer/                sidebar and access screen
 ```
 
-Las cuentas se guardan en `~/Library/Application Support/WA5/cuentas.json`.
-Los datos de sesión de cada cuenta quedan en `~/Library/Application Support/WA5/Partitions/wa-<id>/`.
-Borrar ese directorio equivale a cerrar sesión en todas las cuentas.
+Accounts are stored in `~/Library/Application Support/WA5/accounts.json`.
+Each account's session data lives in
+`~/Library/Application Support/WA5/Partitions/wa-<id>/`. Deleting that directory is the same
+as logging out of every account.
 
-## Por qué no un navegador con perfiles
+## Why not a browser with profiles
 
-Funciona, pero son ventanas sueltas sin barra común, sin badge unificado y con un
-`user-data-dir` por cuenta que hay que administrar a mano. WA5 junta todo en una
-ventana y usa las particiones de sesión de Electron, que es el mecanismo que el propio
-Chromium usa para aislar perfiles.
+It works, but you get loose windows with no shared bar, no unified badge, and one
+`user-data-dir` per account to manage by hand. WA5 puts everything in one window and uses
+Electron's session partitions, which is the mechanism Chromium itself uses to isolate
+profiles.
 
-## Estado
+## Status
 
-macOS, Apple Silicon e Intel. En Linux y Windows debería funcionar sin cambios, pero no
-está probado; los PR son bienvenidos.
+macOS, Apple Silicon and Intel. It should work on Linux and Windows without changes, but it
+is untested; PRs are welcome.
 
-## Licencia
+## License
 
-MIT — ver [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).

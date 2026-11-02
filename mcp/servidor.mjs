@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// Servidor MCP de WA5.
+// WA5 MCP server.
 //
-// Le da a un agente (Hermes) cuatro herramientas sobre las cuentas abiertas en
-// la app: ver cuentas, ver pendientes, leer una conversación y DEJAR UN BORRADOR
-// escrito en la caja de texto. No existe herramienta de envío a propósito: el
-// Enter lo da la persona.
+// Gives an agent (Hermes) four tools over the accounts open in the app: list
+// accounts, list pending chats, read a conversation and LEAVE A DRAFT written
+// in the message box. There is deliberately no send tool: the Enter is pressed
+// by the person.
 //
-// Habla con el servidor de control local que expone la app en 127.0.0.1.
+// It talks to the local control server the app exposes on 127.0.0.1.
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
@@ -14,127 +14,132 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const RUTA_CONTROL = path.join(
+const CONTROL_FILE = path.join(
   os.homedir(), 'Library', 'Application Support', 'WA5', 'control.json'
 );
 
-function leerControl() {
+function readControl() {
   try {
-    const j = JSON.parse(fs.readFileSync(RUTA_CONTROL, 'utf8'));
-    if (j && j.token) return { token: j.token, puerto: j.puerto || 5077 };
-  } catch { /* abajo se explica */ }
+    const j = JSON.parse(fs.readFileSync(CONTROL_FILE, 'utf8'));
+    // "port" is the current key; "puerto" is read so a control.json written
+    // before the rename keeps working.
+    if (j && j.token) return { token: j.token, port: j.port || j.puerto || 5077 };
+  } catch { /* explained below */ }
   throw new Error(
-    `No encuentro ${RUTA_CONTROL}. Abre WA5 al menos una vez para que genere el token de control.`
+    `Cannot find ${CONTROL_FILE}. Open WA5 at least once so it generates the control token.`
   );
 }
 
-async function pedir(ruta, { metodo = 'GET', cuerpo } = {}) {
-  const { token, puerto } = leerControl();
-  const r = await fetch(`http://127.0.0.1:${puerto}${ruta}`, {
-    method: metodo,
+async function request(pathname, { method = 'GET', body } = {}) {
+  const { token, port } = readControl();
+  const r = await fetch(`http://127.0.0.1:${port}${pathname}`, {
+    method,
     headers: {
       'x-token': token,
-      ...(cuerpo ? { 'Content-Type': 'application/json' } : {})
+      ...(body ? { 'Content-Type': 'application/json' } : {})
     },
-    body: cuerpo ? JSON.stringify(cuerpo) : undefined,
+    body: body ? JSON.stringify(body) : undefined,
     signal: AbortSignal.timeout(30000)
   });
-  const datos = await r.json().catch(() => ({ ok: false, error: 'respuesta no JSON' }));
-  if (!datos.ok) {
+  const data = await r.json().catch(() => ({ ok: false, error: 'non-JSON response' }));
+  if (!data.ok) {
     throw new Error(
-      datos.error === 'token inválido'
-        ? 'La app rechazó el token. Cierra y abre WA5 para regenerarlo.'
-        : datos.error || `error ${r.status}`
+      data.error === 'invalid token'
+        ? 'The app rejected the token. Quit and reopen WA5 to regenerate it.'
+        : data.error || `error ${r.status}`
     );
   }
-  return datos;
+  return data;
 }
 
-const texto = (t) => ({ content: [{ type: 'text', text: t }] });
-const fallo = (e) => ({ isError: true, content: [{ type: 'text', text: 'No se pudo: ' + e.message }] });
+const asText = (t) => ({ content: [{ type: 'text', text: t }] });
+const asError = (e) => ({ isError: true, content: [{ type: 'text', text: 'Failed: ' + e.message }] });
 
-const servidor = new McpServer({ name: 'wa5', version: '1.0.0' });
+const server = new McpServer({ name: 'wa5', version: '1.0.0' });
 
-servidor.tool(
-  'wa5_cuentas',
-  'Lista las cuentas de WhatsApp abiertas en la app WA5, con sus mensajes sin leer y si ya cargaron. Úsala primero para saber qué cuentas existen.',
+server.tool(
+  'wa5_accounts',
+  'Lists the WhatsApp accounts open in the WA5 app, with their unread counts and whether they have loaded. Call this first to learn which accounts exist.',
   {},
   async () => {
     try {
-      const d = await pedir('/estado');
-      const lineas = d.datos.cuentas.map(c =>
-        `- ${c.nombre} (id ${c.id}): ${c.noLeidos} sin leer, estado ${c.carga}`
+      const d = await request('/state');
+      // The state object is built by main.js; both spellings are read so this
+      // server keeps working while that file is translated separately.
+      const accounts = d.data.accounts || d.data.cuentas || [];
+      const lines = accounts.map(a =>
+        `- ${a.name ?? a.nombre} (id ${a.id}): ${a.unread ?? a.noLeidos ?? 0} unread, state ${a.loadState ?? a.load ?? a.carga ?? 'unknown'}`
       );
-      return texto(`Cuentas abiertas en WA5:\n${lineas.join('\n')}`);
-    } catch (e) { return fallo(e); }
+      return asText(`Accounts open in WA5:\\n${lines.join('\\n')}`);
+    } catch (e) { return asError(e); }
   }
 );
 
-servidor.tool(
-  'wa5_pendientes',
-  'Devuelve los chats que tienen mensajes sin leer en una cuenta: quién escribió, qué dijo por última vez y a qué hora. Sirve para saber a quién hay que responderle.',
+server.tool(
+  'wa5_pending',
+  'Returns the chats that have unread messages in one account: who wrote, what they said last and at what time. Use it to find out who is waiting for an answer.',
   {
-    cuenta: z.string().optional().describe('Nombre o id de la cuenta. Si se omite, usa la primera.'),
-    todos: z.boolean().optional().describe('Si es true, devuelve todos los chats y no solo los que tienen mensajes sin leer.')
+    account: z.string().optional().describe('Account name or id. Defaults to the first one.'),
+    all: z.boolean().optional().describe('When true, returns every chat, not only the ones with unread messages.')
   },
-  async ({ cuenta, todos }) => {
+  async ({ account, all }) => {
     try {
       const q = new URLSearchParams();
-      if (cuenta) q.set('cuenta', cuenta);
-      if (todos) q.set('todos', '1');
-      const d = await pedir('/pendientes?' + q.toString());
-      if (!d.chats.length) return texto(`Sin pendientes en ${d.cuenta}.`);
-      const lineas = d.chats.map(c =>
-        `- ${c.chat}${c.noLeidos ? ` [${c.noLeidos} sin leer]` : ''}${c.hora ? ` (${c.hora})` : ''}: ${c.ultimo || '(sin vista previa)'}`
+      if (account) q.set('account', account);
+      if (all) q.set('all', '1');
+      const d = await request('/pending?' + q.toString());
+      if (!d.chats.length) return asText(`Nothing pending in ${d.account}.`);
+      const lines = d.chats.map(c =>
+        `- ${c.chat}${c.unread ? ` [${c.unread} unread]` : ''}${c.time ? ` (${c.time})` : ''}: ${c.lastMessage || '(no preview)'}`
       );
-      return texto(`Pendientes en ${d.cuenta} (${d.total}):\n${lineas.join('\n')}`);
-    } catch (e) { return fallo(e); }
+      return asText(`Pending in ${d.account} (${d.total}):\\n${lines.join('\\n')}`);
+    } catch (e) { return asError(e); }
   }
 );
 
-servidor.tool(
-  'wa5_leer',
-  'Abre una conversación y devuelve sus últimos mensajes, indicando quién los mandó y la hora. Ojo: leer un chat lo marca como leído en WhatsApp.',
+server.tool(
+  'wa5_read',
+  'Opens a conversation and returns its latest messages, saying who sent each one and at what time. Note: reading a chat marks it as read in WhatsApp.',
   {
-    chat: z.string().describe('Nombre exacto o parcial del chat o contacto.'),
-    cuenta: z.string().optional().describe('Nombre o id de la cuenta. Si se omite, usa la primera.'),
-    n: z.number().int().min(1).max(100).optional().describe('Cuántos mensajes devolver (por omisión 20).')
+    chat: z.string().describe('Exact or partial name of the chat or contact.'),
+    account: z.string().optional().describe('Account name or id. Defaults to the first one.'),
+    n: z.number().int().min(1).max(100).optional().describe('How many messages to return (20 by default).')
   },
-  async ({ chat, cuenta, n }) => {
+  async ({ chat, account, n }) => {
     try {
       const q = new URLSearchParams({ chat });
-      if (cuenta) q.set('cuenta', cuenta);
+      if (account) q.set('account', account);
       if (n) q.set('n', String(n));
-      const d = await pedir('/leer?' + q.toString());
-      const lineas = d.mensajes.map(m =>
-        `[${m.hora || '--:--'}] ${m.de === 'yo' ? 'Yo' : m.de}: ${m.texto || '(sin texto)'}`
+      const d = await request('/read?' + q.toString());
+      const lines = d.messages.map(m =>
+        `[${m.time || '--:--'}] ${m.from === 'me' ? 'Me' : m.from}: ${m.text || '(no text)'}`
       );
-      return texto(`Conversación con ${d.chat} (${d.cuenta}), últimos ${d.mensajes.length}:\n${lineas.join('\n')}`);
-    } catch (e) { return fallo(e); }
+      return asText(`Conversation with ${d.chat} (${d.account}), last ${d.messages.length}:\\n${lines.join('\\n')}`);
+    } catch (e) { return asError(e); }
   }
 );
 
-servidor.tool(
-  'wa5_borrador',
-  'Escribe un texto como BORRADOR en la caja de mensaje de una conversación, sin enviarlo. Deja el chat abierto para que la persona lo revise y lo mande con Enter. No existe forma de enviar desde aquí.',
+server.tool(
+  'wa5_draft',
+  'Writes a text as a DRAFT in the message box of a conversation, without sending it. It leaves the chat open so the person can review it and send it with Enter. There is no way to send from here.',
   {
-    chat: z.string().describe('Nombre exacto o parcial del chat o contacto.'),
-    texto: z.string().min(1).max(4000).describe('El mensaje a dejar escrito.'),
-    cuenta: z.string().optional().describe('Nombre o id de la cuenta. Si se omite, usa la primera.')
+    chat: z.string().describe('Exact or partial name of the chat or contact.'),
+    text: z.string().min(1).max(4000).describe('The message to leave written.'),
+    account: z.string().optional().describe('Account name or id. Defaults to the first one.')
   },
-  async ({ chat, texto: cuerpo, cuenta }) => {
+  async ({ chat, text, account }) => {
     try {
       const q = new URLSearchParams();
-      if (cuenta) q.set('cuenta', cuenta);
-      const d = await pedir('/borrador?' + q.toString(), { metodo: 'POST', cuerpo: { chat, texto: cuerpo } });
-      return texto(
-        `Borrador escrito en la conversación con ${d.chat} (${d.cuenta}). NO se envió.\n` +
-        `En la caja quedó: "${d.escrito}"\n` +
-        `Dale Enter en la app cuando quieras mandarlo (o bórralo si no te gusta).`
+      if (account) q.set('account', account);
+      const d = await request('/draft?' + q.toString(), { method: 'POST', body: { chat, text } });
+      return asText(
+        `Draft written in the conversation with ${d.chat} (${d.account}). It was NOT sent.\\n` +
+        `The box now reads: "${d.written}"\\n` +
+        `Press Enter in the app when you want to send it (or delete it if you don't like it).`
       );
-    } catch (e) { return fallo(e); }
+    } catch (e) { return asError(e); }
   }
 );
 
-const transporte = new StdioServerTransport();
-await servidor.connect(transporte);
+const transport = new StdioServerTransport();
+await server.connect(transport);

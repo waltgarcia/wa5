@@ -1,97 +1,97 @@
-const lista = document.getElementById('cuentas');
-const botonAgregar = document.getElementById('agregar');
-const area = document.getElementById('area');
-const pie = document.getElementById('pie');
+const accountsList = document.getElementById('accounts');
+const addButton = document.getElementById('add-account');
+const view = document.getElementById('view');
+const footer = document.getElementById('footer');
 
-let estado = { cuentas: [], activa: null, max: 5 };
+let state = { accounts: [], activeId: null, max: 5 };
 
-function inicial(nombre) {
-  const limpio = (nombre || '?').trim();
-  return limpio ? limpio[0].toUpperCase() : '?';
+function initial(name) {
+  const clean = (name || '?').trim();
+  return clean ? clean[0].toUpperCase() : '?';
 }
 
-function pintar() {
-  lista.innerHTML = '';
-  for (const cuenta of estado.cuentas) {
+function render() {
+  accountsList.innerHTML = '';
+  for (const account of state.accounts) {
     const div = document.createElement('div');
-    div.className = 'cuenta' + (cuenta.id === estado.activa ? ' activa' : '');
-    if (cuenta.carga === 'cargando') div.classList.add('cargando');
-    if (cuenta.carga === 'error') div.classList.add('fallo');
-    div.style.background = cuenta.color || '#25D366';
-    let pista = 'Clic: abrir · Clic derecho: opciones';
-    if (cuenta.carga === 'cargando') pista = 'Cargando WhatsApp…';
-    if (cuenta.carga === 'error') pista = 'No cargó. Clic derecho → Recargar';
-    div.title = cuenta.nombre + '\n' + pista;
-    div.textContent = inicial(cuenta.nombre);
-    if (cuenta.noLeidos > 0) {
-      const globo = document.createElement('span');
-      globo.className = 'globo';
-      globo.textContent = cuenta.noLeidos > 99 ? '99+' : String(cuenta.noLeidos);
-      div.appendChild(globo);
+    div.className = 'account' + (account.id === state.activeId ? ' active' : '');
+    if (account.loadState === 'loading') div.classList.add('loading');
+    if (account.loadState === 'error') div.classList.add('failed');
+    div.style.background = account.color || '#25D366';
+    let hint = 'Click: open · Right-click: options';
+    if (account.loadState === 'loading') hint = 'Loading WhatsApp…';
+    if (account.loadState === 'error') hint = 'Failed to load. Right-click → Reload';
+    div.title = account.name + '\n' + hint;
+    div.textContent = initial(account.name);
+    if (account.unread > 0) {
+      const badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.textContent = account.unread > 99 ? '99+' : String(account.unread);
+      div.appendChild(badge);
     }
-    div.addEventListener('click', () => window.wa.activar(cuenta.id));
+    div.addEventListener('click', () => window.wa.activate(account.id));
     div.addEventListener('contextmenu', (e) => {
       e.preventDefault();
-      window.wa.menu(cuenta.id);
+      window.wa.menu(account.id);
     });
-    lista.appendChild(div);
+    accountsList.appendChild(div);
   }
 
-  botonAgregar.disabled = estado.cuentas.length >= estado.max;
-  botonAgregar.title = botonAgregar.disabled
-    ? `Límite: ${estado.max} cuentas`
-    : 'Agregar cuenta';
+  addButton.disabled = state.accounts.length >= state.max;
+  addButton.title = addButton.disabled
+    ? `Limit: ${state.max} accounts`
+    : 'Add account';
 
-  pie.textContent = `${estado.cuentas.length}/${estado.max}`;
+  footer.textContent = `${state.accounts.length}/${state.max}`;
 
-  // el aviso de bienvenida solo se ve cuando todavía no hay ninguna cuenta
-  area.style.display = estado.cuentas.length > 0 ? 'none' : 'flex';
+  // the welcome notice is only visible while there is still no account at all
+  view.style.display = state.accounts.length > 0 ? 'none' : 'flex';
 }
 
-botonAgregar.addEventListener('click', async () => {
-  if (estado.cuentas.length >= estado.max) return;
-  const nombre = prompt('¿Cómo se llama esta cuenta? (ej. Personal, Consultorio, Essity)');
-  if (nombre === null) return;
-  await window.wa.agregar(nombre);
+addButton.addEventListener('click', async () => {
+  if (state.accounts.length >= state.max) return;
+  const name = prompt('What is this account called? (e.g. Personal, Clinic, Essity)');
+  if (name === null) return;
+  await window.wa.add(name);
 });
 
-window.wa.alCambiarCuentas((data) => {
-  estado = data;
-  pintar();
+window.wa.onAccounts((data) => {
+  state = data;
+  render();
 });
 
-window.wa.alCambiarNoLeidos(({ id, n }) => {
-  const c = estado.cuentas.find(x => x.id === id);
-  if (c) { c.noLeidos = n; pintar(); }
+window.wa.onUnread(({ id, unread }) => {
+  const a = state.accounts.find(x => x.id === id);
+  if (a) { a.unread = unread; render(); }
 });
 
-window.wa.alCambiarCarga(({ id, estado: fase }) => {
-  const c = estado.cuentas.find(x => x.id === id);
-  if (c) { c.carga = fase; pintar(); }
+window.wa.onLoadState(({ id, loadState }) => {
+  const a = state.accounts.find(x => x.id === id);
+  if (a) { a.loadState = loadState; render(); }
 });
 
-window.wa.alPedirRenombrar(async (id) => {
-  const cuenta = estado.cuentas.find(x => x.id === id);
-  if (!cuenta) return;
-  const nombre = prompt('Nuevo nombre para esta cuenta:', cuenta.nombre);
-  if (nombre === null) return;
-  await window.wa.renombrar(id, nombre);
+window.wa.onRenameRequest(async (id) => {
+  const account = state.accounts.find(x => x.id === id);
+  if (!account) return;
+  const name = prompt('New name for this account:', account.name);
+  if (name === null) return;
+  await window.wa.rename(id, name);
 });
 
-window.wa.estado().then((data) => {
-  estado = data;
-  pintar();
+window.wa.state().then((data) => {
+  state = data;
+  render();
 });
 
-// Avisar al proceso principal de que hay actividad, para que la contraseña solo
-// se pida después de varios minutos sin tocar la app.
-let ultimoAviso = 0;
-function avisarActividad() {
-  const ahora = Date.now();
-  if (ahora - ultimoAviso < 2000) return;
-  ultimoAviso = ahora;
-  window.wa.actividad();
+// Tell the main process there is activity, so the password is only asked for
+// after several minutes without touching the app.
+let lastSignal = 0;
+function signalActivity() {
+  const now = Date.now();
+  if (now - lastSignal < 2000) return;
+  lastSignal = now;
+  window.wa.activity();
 }
 for (const ev of ['mousemove', 'mousedown', 'keydown', 'wheel']) {
-  window.addEventListener(ev, avisarActividad, { passive: true });
+  window.addEventListener(ev, signalActivity, { passive: true });
 }

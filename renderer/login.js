@@ -1,56 +1,56 @@
 const $ = (id) => document.getElementById(id);
-let modo = 'configurar';
+let mode = 'setup';
 
-function mostrarError(t) { $('error').textContent = t || ''; }
+function showError(message) { $('error').textContent = message || ''; }
 
-async function iniciar() {
-  const e = await window.acceso.estado();
-  if (e.configurado) {
-    modo = 'entrar';
-    $('titulo').textContent = 'Entrar a WA5';
-    $('subtitulo').textContent = 'Escribe tu contraseña para abrir las cuentas.';
-    $('grupoPerfil').classList.add('oculto');
-    $('grupoRepetir').classList.add('oculto');
-    $('accion').textContent = 'Entrar';
-    if (e.touchid) $('botonHuella').classList.remove('oculto');
+async function start() {
+  const status = await window.access.state();
+  if (status.configured) {
+    mode = 'unlock';
+    $('title').textContent = 'Enter WA5';
+    $('subtitle').textContent = 'Type your password to open the accounts.';
+    $('profile-group').classList.add('hidden');
+    $('repeat-group').classList.add('hidden');
+    $('action').textContent = 'Enter';
+    if (status.touchId) $('touch-button').classList.remove('hidden');
   } else {
-    modo = 'configurar';
+    mode = 'setup';
   }
-  $('contrasena').focus();
+  $('password').focus();
 }
 
-$('botonHuella').addEventListener('click', async () => {
-  mostrarError('');
-  const r = await window.acceso.touchid();
-  if (!r.ok) mostrarError(r.error);
+$('touch-button').addEventListener('click', async () => {
+  showError('');
+  const result = await window.access.touchId();
+  if (!result.ok) showError(result.error);
 });
 
-$('forma').addEventListener('submit', async (ev) => {
+$('form').addEventListener('submit', async (ev) => {
   ev.preventDefault();
-  mostrarError('');
-  $('accion').disabled = true;
+  showError('');
+  $('action').disabled = true;
 
   try {
-    if (modo === 'configurar') {
-      const perfil = $('perfil').value.trim();
-      const c1 = $('contrasena').value;
-      const c2 = $('repetir').value;
-      if (!perfil) return mostrarError('Escribe el nombre del perfil.');
-      if (c1.length < 6) return mostrarError('La contraseña debe tener al menos 6 caracteres.');
-      if (c1 !== c2) return mostrarError('Las dos contraseñas no coinciden.');
-      const r = await window.acceso.configurar(perfil, c1);
-      if (!r.ok) return mostrarError(r.error);
+    if (mode === 'setup') {
+      const profile = $('profile').value.trim();
+      const first = $('password').value;
+      const second = $('repeat').value;
+      if (!profile) return showError('Type the profile name.');
+      if (first.length < 6) return showError('The password must be at least 6 characters.');
+      if (first !== second) return showError('The two passwords do not match.');
+      const result = await window.access.configure(profile, first);
+      if (!result.ok) return showError(result.error);
     } else {
-      const r = await window.acceso.desbloquear($('contrasena').value);
-      if (!r.ok) {
-        mostrarError(r.error);
-        $('contrasena').value = '';
-        $('contrasena').focus();
+      const result = await window.access.unlock($('password').value);
+      if (!result.ok) {
+        showError(result.error);
+        $('password').value = '';
+        $('password').focus();
       }
     }
   } finally {
-    $('accion').disabled = false;
+    $('action').disabled = false;
   }
 });
 
-iniciar();
+start();

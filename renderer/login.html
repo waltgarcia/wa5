@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy"
@@ -7,82 +7,82 @@
   <title>WA5</title>
   <style>
     :root {
-      --fondo: #0b141a;
+      --bg: #0b141a;
       --panel: #111b21;
-      --borde: #22343d;
-      --texto: #e9edef;
-      --tenue: #8696a0;
-      --verde: #25d366;
-      --rojo: #f15c6d;
+      --border: #22343d;
+      --text: #e9edef;
+      --muted: #8696a0;
+      --green: #25d366;
+      --red: #f15c6d;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0; height: 100vh;
       display: flex; align-items: center; justify-content: center;
-      background: var(--fondo); color: var(--texto);
+      background: var(--bg); color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       -webkit-user-select: none;
     }
-    .caja { width: 340px; }
+    .box { width: 340px; }
     .logo {
       width: 62px; height: 62px; margin: 0 auto 18px;
-      border-radius: 18px; background: var(--verde);
+      border-radius: 18px; background: var(--green);
       display: flex; align-items: center; justify-content: center;
       font-size: 27px; font-weight: 700; color: #06251a;
     }
     h1 { font-size: 19px; margin: 0 0 6px; text-align: center; font-weight: 600; }
-    p.sub { margin: 0 0 22px; text-align: center; font-size: 12.5px; color: var(--tenue); line-height: 1.5; }
-    label { display: block; font-size: 11.5px; color: var(--tenue); margin: 0 0 6px; letter-spacing: .3px; }
+    p.sub { margin: 0 0 22px; text-align: center; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+    label { display: block; font-size: 11.5px; color: var(--muted); margin: 0 0 6px; letter-spacing: .3px; }
     input {
       width: 100%; padding: 11px 12px; margin-bottom: 14px;
-      background: var(--panel); color: var(--texto);
-      border: 1px solid var(--borde); border-radius: 8px;
+      background: var(--panel); color: var(--text);
+      border: 1px solid var(--border); border-radius: 8px;
       font-size: 14px; outline: none;
     }
-    input:focus { border-color: var(--verde); }
-    input[readonly] { color: var(--tenue); }
+    input:focus { border-color: var(--green); }
+    input[readonly] { color: var(--muted); }
     button {
       width: 100%; padding: 12px; border: 0; border-radius: 8px;
-      background: var(--verde); color: #06251a;
+      background: var(--green); color: #06251a;
       font-size: 14px; font-weight: 600; cursor: pointer;
     }
     button:disabled { opacity: .5; cursor: default; }
-    button.secundario {
-      background: transparent; color: var(--texto);
-      border: 1px solid var(--borde); margin-top: 10px;
+    button.secondary {
+      background: transparent; color: var(--text);
+      border: 1px solid var(--border); margin-top: 10px;
     }
-    button.secundario:hover { border-color: var(--verde); }
-    .error { color: var(--rojo); font-size: 12px; min-height: 30px; margin-top: 10px; line-height: 1.4; }
-    .oculto { display: none; }
-    .pie { margin-top: 16px; text-align: center; font-size: 11px; color: #5b6b73; }
+    button.secondary:hover { border-color: var(--green); }
+    .error { color: var(--red); font-size: 12px; min-height: 30px; margin-top: 10px; line-height: 1.4; }
+    .hidden { display: none; }
+    .note { margin-top: 16px; text-align: center; font-size: 11px; color: #5b6b73; }
   </style>
 </head>
 <body>
-  <div class="caja">
+  <div class="box">
     <div class="logo">5</div>
-    <h1 id="titulo">Configurar acceso</h1>
-    <p class="sub" id="subtitulo">Elige un nombre de perfil y una contraseña. Se piden cada vez que abras WA5.</p>
+    <h1 id="title">Set up access</h1>
+    <p class="sub" id="subtitle">Choose a profile name and a password. They are asked every time you open WA5.</p>
 
-    <form id="forma" autocomplete="off">
-      <div id="grupoPerfil">
-        <label for="perfil">Nombre del perfil</label>
-        <input id="perfil" type="text" maxlength="40" spellcheck="false" placeholder="Siempre el mismo">
+    <form id="form" autocomplete="off">
+      <div id="profile-group">
+        <label for="profile">Profile name</label>
+        <input id="profile" type="text" maxlength="40" spellcheck="false" placeholder="Always the same">
       </div>
 
-      <label for="contrasena">Contraseña</label>
-      <input id="contrasena" type="password" autocomplete="off">
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="off">
 
-      <div id="grupoRepetir">
-        <label for="repetir">Repetir contraseña</label>
-        <input id="repetir" type="password" autocomplete="off">
+      <div id="repeat-group">
+        <label for="repeat">Repeat password</label>
+        <input id="repeat" type="password" autocomplete="off">
       </div>
 
-      <button id="accion" type="submit">Crear y entrar</button>
-      <button id="botonHuella" type="button" class="secundario oculto">Usar Touch ID</button>
+      <button id="action" type="submit">Create and enter</button>
+      <button id="touch-button" type="button" class="secondary hidden">Use Touch ID</button>
       <div class="error" id="error"></div>
     </form>
 
-    <div class="pie">La contraseña se guarda cifrada en esta Mac. Si la olvidas, hay que reiniciar el acceso.</div>
+    <div class="note">The password is stored encrypted on this Mac. If you forget it, access has to be reset.</div>
   </div>
   <script src="login.js"></script>
 </body>

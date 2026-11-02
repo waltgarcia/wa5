@@ -1,17 +1,17 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('wa', {
-  estado: () => ipcRenderer.invoke('cuentas:estado'),
-  agregar: (nombre) => ipcRenderer.invoke('cuentas:agregar', nombre),
-  renombrar: (id, nombre) => ipcRenderer.invoke('cuentas:renombrar', id, nombre),
-  eliminar: (id, borrar) => ipcRenderer.invoke('cuentas:eliminar', id, borrar),
-  activar: (id) => ipcRenderer.invoke('cuentas:activar', id),
-  recargar: (id) => ipcRenderer.invoke('cuentas:recargar', id),
-  cerrarSesion: (id) => ipcRenderer.invoke('cuentas:cerrarSesion', id),
-  menu: (id) => ipcRenderer.invoke('cuentas:menu', id),
-  alCambiarCuentas: (fn) => ipcRenderer.on('estado:cuentas', (_e, data) => fn(data)),
-  alCambiarNoLeidos: (fn) => ipcRenderer.on('estado:noLeidos', (_e, data) => fn(data)),
-  alCambiarCarga: (fn) => ipcRenderer.on('estado:carga', (_e, data) => fn(data)),
-  actividad: () => ipcRenderer.send('wa5:actividad'),
-  alPedirRenombrar: (fn) => ipcRenderer.on('ui:renombrar', (_e, id) => fn(id))
+  state: () => ipcRenderer.invoke('accounts:state'),
+  add: (name) => ipcRenderer.invoke('accounts:add', name),
+  rename: (id, name) => ipcRenderer.invoke('accounts:rename', id, name),
+  remove: (id, wipe) => ipcRenderer.invoke('accounts:remove', id, wipe),
+  activate: (id) => ipcRenderer.invoke('accounts:activate', id),
+  reload: (id) => ipcRenderer.invoke('accounts:reload', id),
+  logout: (id) => ipcRenderer.invoke('accounts:logout', id),
+  menu: (id) => ipcRenderer.invoke('accounts:menu', id),
+  onAccounts: (fn) => ipcRenderer.on('state:accounts', (_e, data) => fn(data)),
+  onUnread: (fn) => ipcRenderer.on('state:unread', (_e, data) => fn(data)),
+  onLoadState: (fn) => ipcRenderer.on('state:load', (_e, data) => fn(data)),
+  activity: () => ipcRenderer.send('wa5:activity'),
+  onRenameRequest: (fn) => ipcRenderer.on('ui:rename', (_e, id) => fn(id))
 });

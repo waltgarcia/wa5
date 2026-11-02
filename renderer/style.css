@@ -1,18 +1,18 @@
 :root {
-  --barra: 78px;
-  --fondo: #111b21;
+  --sidebar-width: 78px;
+  --bg: #111b21;
   --panel: #202c33;
-  --texto: #e9edef;
-  --apagado: #8696a0;
-  --acento: #00a884;
+  --text: #e9edef;
+  --muted: #8696a0;
+  --accent: #00a884;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
   height: 100%;
-  background: var(--fondo);
-  color: var(--texto);
+  background: var(--bg);
+  color: var(--text);
   font-family: -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
   overflow: hidden;
   user-select: none;
@@ -20,10 +20,10 @@ html, body {
 
 body { display: flex; }
 
-/* ---------- barra lateral ---------- */
-#barra {
-  width: var(--barra);
-  min-width: var(--barra);
+/* ---------- sidebar ---------- */
+#sidebar {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
   height: 100%;
   background: #0b141a;
   border-right: 1px solid #222d34;
@@ -34,9 +34,9 @@ body { display: flex; }
   -webkit-app-region: drag;
 }
 
-#arrastre { height: 34px; width: 100%; }
+#drag-area { height: 34px; width: 100%; }
 
-#cuentas {
+#accounts {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -44,7 +44,7 @@ body { display: flex; }
   -webkit-app-region: no-drag;
 }
 
-.cuenta {
+.account {
   position: relative;
   width: 48px;
   height: 48px;
@@ -60,28 +60,28 @@ body { display: flex; }
   transition: transform .12s ease, border-color .12s ease, opacity .12s;
   opacity: .92;
 }
-.cuenta:hover { transform: scale(1.06); opacity: 1; }
-.cuenta.activa { border-color: var(--texto); opacity: 1; }
+.account:hover { transform: scale(1.06); opacity: 1; }
+.account.active { border-color: var(--text); opacity: 1; }
 
-/* anillo giratorio mientras la cuenta carga */
-.cuenta.cargando::after {
+/* spinning ring while the account loads */
+.account.loading::after {
   content: '';
   position: absolute;
   inset: -4px;
   border-radius: 50%;
   border: 2px solid transparent;
-  border-top-color: var(--acento);
-  border-right-color: var(--acento);
-  animation: girar .8s linear infinite;
+  border-top-color: var(--accent);
+  border-right-color: var(--accent);
+  animation: spin .8s linear infinite;
 }
 
-/* marco rojo si la vista no cargó */
-.cuenta.fallo { box-shadow: 0 0 0 2px #f15c6d inset; }
+/* red frame if the view did not load */
+.account.failed { box-shadow: 0 0 0 2px #f15c6d inset; }
 
-@keyframes girar {
+@keyframes spin {
   to { transform: rotate(360deg); }
 }
-.cuenta .globo {
+.account .badge {
   position: absolute;
   top: -3px; right: -3px;
   min-width: 19px;
@@ -98,48 +98,48 @@ body { display: flex; }
   border: 2px solid #0b141a;
 }
 
-#agregar {
+#add-account {
   margin-top: 12px;
   width: 44px;
   height: 44px;
   border-radius: 50%;
   border: 1.5px dashed #3d4f58;
   background: transparent;
-  color: var(--apagado);
+  color: var(--muted);
   font-size: 24px;
   line-height: 1;
   cursor: pointer;
   -webkit-app-region: no-drag;
   transition: all .15s;
 }
-#agregar:hover:not(:disabled) { border-color: var(--acento); color: var(--acento); }
-#agregar:disabled { opacity: .3; cursor: not-allowed; }
+#add-account:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+#add-account:disabled { opacity: .3; cursor: not-allowed; }
 
-.espacio { flex: 1; }
+.spacer { flex: 1; }
 
-#pie {
+#footer {
   font-size: 10px;
   color: #4a5c66;
   -webkit-app-region: no-drag;
 }
 
-/* ---------- área de contenido (la llena la vista web) ---------- */
-#area {
+/* ---------- content area (filled by the web view) ---------- */
+#view {
   flex: 1;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--fondo);
+  background: var(--bg);
 }
 
-#vacio { text-align: center; max-width: 380px; padding: 24px; }
-#vacio .logo {
+#empty { text-align: center; max-width: 380px; padding: 24px; }
+#empty .logo {
   width: 76px;
   height: 76px;
   margin: 0 auto 18px;
   border-radius: 50%;
-  background: var(--acento);
+  background: var(--accent);
   color: #0b141a;
   font-size: 38px;
   font-weight: 800;
@@ -147,6 +147,6 @@ body { display: flex; }
   align-items: center;
   justify-content: center;
 }
-#vacio h1 { font-size: 22px; margin-bottom: 10px; font-weight: 700; letter-spacing: -.2px; }
-#vacio p { color: var(--apagado); font-size: 14px; line-height: 1.6; }
-#vacio b { color: var(--acento); }
+#empty h1 { font-size: 22px; margin-bottom: 10px; font-weight: 700; letter-spacing: -.2px; }
+#empty p { color: var(--muted); font-size: 14px; line-height: 1.6; }
+#empty b { color: var(--accent); }
