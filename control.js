@@ -29,13 +29,23 @@ const JS_LISTA_CHATS = `(() => {
     const chat = limpio(spanTitulo ? spanTitulo.getAttribute('title') : cajaTitulo.innerText);
     if (!chat) continue;
     const cajaDetalle = f.querySelector('[data-testid="cell-frame-primary-detail"]');
-    const spanDetalle = cajaDetalle ? cajaDetalle.querySelector('span[dir="auto"]') : null;
+    const cajaSecundaria = f.querySelector('[data-testid="cell-frame-secondary"]');
     const hora = f.querySelector('[data-testid="chat-list-timestamp"]');
     const badge = f.querySelector('[data-testid="icon-unread-count"]');
     const saliente = !!f.querySelector('[data-icon^="msg-"]');
+    // El texto del último mensaje aparece a veces en primary-detail y a veces en
+    // secondary según la versión: se prueban los dos y se descarta lo que sea hora.
+    const pareceHora = (t) => /^(\\d{1,2}:\\d{2}|ayer|\\d{1,2}\\/\\d{1,2}\\/\\d{2,4})$/i.test(t);
+    const candidatos = [];
+    for (const caja of [cajaSecundaria, cajaDetalle]) {
+      if (!caja) continue;
+      const span = caja.querySelector('span[dir="auto"]') || caja.querySelector('span');
+      candidatos.push(limpio(span ? span.innerText : caja.innerText));
+    }
+    const ultimo = candidatos.find(t => t && !pareceHora(t)) || '';
     out.push({
       chat,
-      ultimo: limpio(spanDetalle ? spanDetalle.innerText : (cajaDetalle ? cajaDetalle.innerText : '')),
+      ultimo,
       hora: limpio(hora ? hora.innerText : ''),
       noLeidos: limpio(badge ? badge.innerText : ''),
       esperaRespuesta: !saliente
@@ -256,6 +266,15 @@ function iniciarControl({ vistaDe, cuentas, activar, rutaDatos, estado, estaDesb
           paneSide: !!document.querySelector('#pane-side'),
           filas: document.querySelectorAll('#pane-side [role="row"]').length,
           testids: (() => { const c={}; document.querySelectorAll('[data-testid]').forEach(e=>{const k=e.getAttribute('data-testid');c[k]=(c[k]||0)+1}); return Object.entries(c).sort((a,b)=>b[1]-a[1]).slice(0,8); })(),
+          filaMuestra: (() => {
+            const f = document.querySelector('#pane-side [role="row"]');
+            if (!f) return null;
+            const r = {};
+            f.querySelectorAll('[data-testid]').forEach(e => {
+              r[e.getAttribute('data-testid')] = (e.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 60);
+            });
+            return r;
+          })(),
           texto: document.body.innerText.replace(/\\s+/g,' ').slice(0, 160)
         }))()`));
         return json(res, 200, { ok: true, cuenta: cuenta.nombre, ...d });
