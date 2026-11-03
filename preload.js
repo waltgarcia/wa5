@@ -3,6 +3,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('wa', {
   state: () => ipcRenderer.invoke('accounts:state'),
   add: (name) => ipcRenderer.invoke('accounts:add', name),
+  uiLog: (message) => ipcRenderer.send('wa5:ui-log', message),
+  platform: process.platform,
   rename: (id, name) => ipcRenderer.invoke('accounts:rename', id, name),
   remove: (id, wipe) => ipcRenderer.invoke('accounts:remove', id, wipe),
   activate: (id) => ipcRenderer.invoke('accounts:activate', id),

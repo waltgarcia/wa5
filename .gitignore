@@ -11,10 +11,14 @@ out/
 .DS_Store
 Icon\r
 
-# datos locales del usuario
+# datos locales del usuario (nombres nuevos y los viejos, migrados)
+accounts.json
+access.json
+session.json
 cuentas.json
 control.json
 acceso.json
+sesion.json
 Partitions/
 
 # logs y temporales

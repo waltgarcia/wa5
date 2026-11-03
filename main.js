@@ -15,10 +15,40 @@ const IDLE_TIMEOUT_MS = IDLE_MINUTES * 60 * 1000;
 const WA_URL = 'https://web.whatsapp.com/';
 const PALETTE = ['#25D366', '#128C7E', '#0A84FF', '#D60079', '#F5A623'];
 
+// 'hiddenInset' only exists on macOS: on Windows and Linux the normal frame is kept,
+// which is also what users there expect (minimise / maximise / close on the right).
+const TITLE_BAR = process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset' } : {};
+
+
 app.setName('WA5');
 
 const dataDir = () => app.getPath('userData');
 const ACCOUNTS_FILE = () => path.join(dataDir(), 'accounts.json');
+
+// ---------------------------------------------------------------- logging
+// The packaged app has no terminal, so every diagnostic line also goes to a file
+// next to accounts.json. Without it a "the account does not load" report cannot
+// be diagnosed after the fact.
+function installFileLogging() {
+  try {
+    fs.mkdirSync(dataDir(), { recursive: true });
+    const file = path.join(dataDir(), 'wa5.log');
+    try { if (fs.statSync(file).size > 1_000_000) fs.renameSync(file, file + '.1'); } catch (e) {}
+    const stream = fs.createWriteStream(file, { flags: 'a' });
+    const wrap = (orig) => (...args) => {
+      orig(...args);
+      try {
+        const line = args.map((a) => {
+          if (typeof a === 'string') return a;
+          try { return JSON.stringify(a); } catch (e2) { return String(a); }
+        }).join(' ');
+        stream.write(`${new Date().toISOString()} ${line}\n`);
+      } catch (e2) { /* logging never breaks the app */ }
+    };
+    console.log = wrap(console.log.bind(console));
+    console.error = wrap(console.error.bind(console));
+  } catch (e) { /* logging never breaks the app */ }
+}
 
 let win = null;
 let accessWindow = null;
@@ -29,6 +59,9 @@ let activeId = null;              // id of the visible account
 const views = new Map();          // id -> WebContentsView
 const unread = new Map();         // id -> number
 const loadState = new Map();      // id -> 'loading' | 'ready' | 'error'
+const loadTimers = new Map();     // id -> timer that watches a stuck load
+const repairAttempts = new Map(); // id -> how many automatic repairs were already tried
+
 
 // ---------------------------------------------------------------- persistence
 // The data files were renamed to English; without this the first run after the
@@ -152,15 +185,47 @@ function createView(account) {
   // something is happening; without this the window looks frozen.
   const notifyLoad = (state) => {
     loadState.set(account.id, state);
+    console.log(`[wa5] ${account.name} (${account.id}) → ${state}`);
     if (win && !win.isDestroyed()) win.webContents.send('state:load', { id: account.id, loadState: state });
+    // An account that stays on the spinner forever is the classic WhatsApp Web
+    // failure: corrupted service workers. Give it 45 s and repair it on its own,
+    // at most twice, instead of making the user notice and press anything.
+    if (state === 'loading') {
+      if (!loadTimers.has(account.id)) {
+        loadTimers.set(account.id, setTimeout(() => {
+          loadTimers.delete(account.id);
+          if (loadState.get(account.id) !== 'loading') return;
+          const tries = repairAttempts.get(account.id) || 0;
+          if (tries >= 2) {
+            console.log(`[wa5] ${account.name} still loading after 2 repairs: leaving it to the user`);
+            return;
+          }
+          repairAttempts.set(account.id, tries + 1);
+          console.log(`[wa5] ${account.name} stuck on loading: repairing automatically (${tries + 1}/2)`);
+          repairAccount(account.id);
+        }, 45_000));
+      }
+    } else {
+      const t = loadTimers.get(account.id);
+      if (t) { clearTimeout(t); loadTimers.delete(account.id); }
+      if (state === 'ready') repairAttempts.delete(account.id);
+    }
   };
   wc.on('did-start-loading', () => notifyLoad('loading'));
   wc.on('did-finish-load', () => notifyLoad('ready'));
   wc.on('did-stop-loading', () => notifyLoad('ready'));
-  wc.on('did-fail-load', (_e, code, desc, _url, isMainFrame) => {
+  wc.on('did-fail-load', (_e, code, desc, url, isMainFrame) => {
+    console.log(`[wa5] did-fail-load ${account.name}: code=${code} desc=${desc} url=${url} main=${isMainFrame}`);
     if (isMainFrame) notifyLoad('error');
   });
-  wc.on('render-process-gone', () => notifyLoad('error'));
+  wc.on('render-process-gone', (_e, details) => {
+    console.log(`[wa5] render-process-gone ${account.name}:`, JSON.stringify(details));
+    notifyLoad('error');
+  });
+  wc.on('unresponsive', () => console.log(`[wa5] unresponsive ${account.name}`));
+  wc.on('console-message', (_e, level, message) => {
+    if (level >= 2) console.log(`[wa5:render ${account.name}] ${message}`);
+  });
 
 
   wc.on('page-title-updated', (_e, t) => refreshUnread(t));
@@ -248,7 +313,10 @@ function preloadAccounts() {
 }
 
 function addAccount(name) {
-  if (accounts.length >= MAX_ACCOUNTS) return { ok: false, error: `Limit reached: ${MAX_ACCOUNTS} accounts.` };
+  if (accounts.length >= MAX_ACCOUNTS) {
+    console.log(`[wa5] add refused: already ${accounts.length} accounts`);
+    return { ok: false, error: `Limit reached: ${MAX_ACCOUNTS} accounts.` };
+  }
   const id = crypto.randomBytes(4).toString('hex');
   const account = {
     id,
@@ -257,6 +325,7 @@ function addAccount(name) {
   };
   accounts.push(account);
   activeId = id;
+  console.log(`[wa5] account added: ${account.name} (${id}) → ${accounts.length}/${MAX_ACCOUNTS}`);
   save();
   createView(account);
   layout();
@@ -362,6 +431,75 @@ function watchInactivity() {
   }, 20_000);
 }
 
+// ---------------------------------------------------------------- asking a name
+// Every account view is a WebContentsView, and those paint ON TOP of the window's
+// own renderer. A dialog drawn in index.html is therefore invisible behind
+// WhatsApp (and window.prompt() does not exist in Electron at all), which is why
+// the "+" button looked dead. The name is asked in a small child window instead,
+// the same trick the password screen already uses.
+let askWindow = null;
+let askPending = null;   // resolve() of the question being asked
+let askShown = null;     // { title, value } the child window must render
+
+function askInWindow(title, defaultValue = '') {
+  if (!win || win.isDestroyed()) return Promise.resolve(null);
+  if (askWindow && !askWindow.isDestroyed()) { askWindow.focus(); return Promise.resolve(null); }
+  console.log('[wa5] opening the name dialog');
+  return new Promise((resolve) => {
+    askShown = { title, value: defaultValue || '' };
+    askPending = resolve;
+    askWindow = new BrowserWindow({
+      width: 420,
+      height: 210,
+      parent: win,
+      modal: true,
+      resizable: false,
+      minimizable: false,
+      maximizable: false,
+      fullscreenable: false,
+      title: 'WA5',
+      ...TITLE_BAR,
+      backgroundColor: '#202c33',
+      show: false,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload-ask.js'),
+        contextIsolation: true,
+        nodeIntegration: false
+      }
+    });
+    askWindow.loadFile(path.join(__dirname, 'renderer', 'ask.html'));
+    askWindow.once('ready-to-show', () => askWindow.show());
+    askWindow.on('closed', () => {
+      askWindow = null;
+      askShown = null;
+      const pending = askPending;
+      askPending = null;
+      if (pending) pending(null);   // closing the window means "cancel"
+    });
+  });
+}
+
+ipcMain.handle('ask:init', () => askShown || { title: '', value: '' });
+
+ipcMain.on('ask:answer', (_e, value) => {
+  const pending = askPending;
+  askPending = null;
+  askShown = null;
+  if (askWindow && !askWindow.isDestroyed()) askWindow.destroy();
+  if (pending) pending(typeof value === 'string' ? value : null);
+});
+
+// One path for both entry points: the "+" button and the Accounts menu.
+async function addAccountByAsking() {
+  if (accounts.length >= MAX_ACCOUNTS) return { ok: false, error: `Limit reached: ${MAX_ACCOUNTS} accounts.` };
+  const name = await askInWindow('¿Cómo se llama esta cuenta?', `Cuenta ${accounts.length + 1}`);
+  if (name === null) {
+    console.log('[wa5] name dialog cancelled');
+    return { ok: false, cancelled: true };
+  }
+  return addAccount(name);
+}
+
 function showAccess() {
   if (accessWindow) { accessWindow.focus(); return; }
   unlocked = false;
@@ -374,7 +512,7 @@ function showAccess() {
     maximizable: false,
     fullscreenable: false,
     title: 'WA5',
-    titleBarStyle: 'hiddenInset',
+    ...TITLE_BAR,
     backgroundColor: '#0b141a',
     show: false,
     webPreferences: {
@@ -448,7 +586,7 @@ function createWindow(bounds) {
     minWidth: 900,
     minHeight: 600,
     title: 'WA5',
-    titleBarStyle: 'hiddenInset',
+    ...TITLE_BAR,
     backgroundColor: '#111b21',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -494,7 +632,7 @@ function installMenu() {
         {
           label: 'Add account…',
           accelerator: 'CmdOrCtrl+Shift+N',
-          click: () => { if (accounts.length < MAX_ACCOUNTS) addAccount(''); }
+          click: () => { addAccountByAsking(); }
         },
         { type: 'separator' },
         ...[1, 2, 3, 4, 5].map(n => ({
@@ -588,7 +726,11 @@ ipcMain.handle('accounts:state', () => ({
   })),
   activeId, max: MAX_ACCOUNTS
 }));
-ipcMain.handle('accounts:add', (_e, name) => addAccount(name));
+ipcMain.handle('accounts:add', async (_e, name) => {
+  if (typeof name === 'string' && name.trim()) return addAccount(name);
+  return addAccountByAsking();
+});
+ipcMain.on('wa5:ui-log', (_e, message) => console.log(`[wa5:ui] ${message}`));
 ipcMain.handle('accounts:rename', (_e, id, name) => renameAccount(id, name));
 ipcMain.handle('accounts:remove', (_e, id, wipe) => removeAccount(id, wipe));
 ipcMain.handle('accounts:activate', (_e, id) => { activateAccount(id); return { ok: true }; });
@@ -596,7 +738,11 @@ ipcMain.handle('accounts:reload', (_e, id) => { reloadAccount(id); return { ok: 
 ipcMain.handle('accounts:logout', (_e, id) => logoutAccount(id).then(() => ({ ok: true })));
 ipcMain.handle('accounts:menu', (_e, id) => {
   Menu.buildFromTemplate([
-    { label: 'Rename…', click: () => win.webContents.send('ui:rename', id) },
+    { label: 'Rename…', click: async () => {
+      const c = accounts.find(x => x.id === id);
+      const name = await askInWindow('Nuevo nombre para esta cuenta:', c ? c.name : '');
+      if (name !== null) { renameAccount(id, name); }
+    } },
     { label: 'Reload', click: () => reloadAccount(id) },
     { label: 'Repair if stuck loading', click: () => repairAccount(id) },
     { label: 'Log out of this account', click: () => logoutAccount(id) },
@@ -634,6 +780,27 @@ function startLocalControl() {
     console.error('[wa5] could not start local control:', e.message);
   }
 }
+
+// One copy only. Two instances share the same userData directory, and two Chromium
+// processes fighting over the same partition LOCK files leave accounts unable to
+// load: quota database reset, service worker database IO errors, and a third
+// account that never gets past the spinner. Opening the app twice (double click on
+// the Dock icon, Launchpad plus an old window) was doing exactly that.
+if (!app.requestSingleInstanceLock()) {
+  console.log('[wa5] another copy is already running: handing over and quitting');
+  app.quit();
+  return;
+}
+app.on('second-instance', () => {
+  console.log('[wa5] second launch ignored: focusing the running window');
+  const target = accessWindow && !accessWindow.isDestroyed() ? accessWindow : (win && !win.isDestroyed() ? win : null);
+  if (!target) return;
+  if (target.isMinimized()) target.restore();
+  target.show();
+  target.focus();
+});
+
+installFileLogging();
 
 app.whenReady().then(() => {
   migrateLegacyFiles();

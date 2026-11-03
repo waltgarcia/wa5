@@ -1,8 +1,8 @@
 {
   "name": "wa5",
   "productName": "WA5",
-  "version": "1.4.0",
-  "description": "Up to five WhatsApp Web accounts at once, each in its own isolated session. macOS, Electron.",
+  "version": "1.4.4",
+  "description": "Up to five WhatsApp Web accounts at once, each in its own isolated session. macOS, Windows and Linux, Electron.",
   "main": "main.js",
   "license": "MIT",
   "repository": {
@@ -15,11 +15,17 @@
     "multi-cuenta",
     "electron",
     "macos",
+    "windows",
+    "linux",
     "multi-account"
   ],
   "scripts": {
     "start": "electron .",
-    "build": "electron-packager . WA5 --platform=darwin --overwrite --out=dist --app-bundle-id=io.github.wa5 --icon=assets/icon.icns --ignore=\"^/(dist|docs|\\.github|mcp)\"",
+    "build": "npm run build:mac",
+    "build:mac": "electron-packager . WA5 --platform=darwin --arch=arm64 --overwrite --out=dist --app-bundle-id=io.github.wa5 --icon=assets/icon.icns --ignore=\"^/(dist|docs|\\.github|mcp)\"",
+    "build:mac:intel": "electron-packager . WA5 --platform=darwin --arch=x64 --overwrite --out=dist --app-bundle-id=io.github.wa5 --icon=assets/icon.icns --ignore=\"^/(dist|docs|\\.github|mcp)\"",
+    "build:win": "electron-packager . WA5 --platform=win32 --arch=x64 --overwrite --out=dist --app-bundle-id=io.github.wa5 --icon=assets/icon.ico --ignore=\"^/(dist|docs|\\.github|mcp)\"",
+    "build:linux": "electron-packager . WA5 --platform=linux --arch=x64 --overwrite --out=dist --ignore=\"^/(dist|docs|\\.github|mcp)\"",
     "mcp": "node mcp/servidor.mjs"
   },
   "devDependencies": {

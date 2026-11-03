@@ -3,6 +3,40 @@
 All notable changes to WA5 are listed here. This project follows
 [Semantic Versioning](https://semver.org/).
 
+## 1.4.4 — Adding an account actually works, plus Windows
+
+Four bugs stacked up behind one symptom: pressing the **+** did nothing at all.
+
+**Fixed**
+- `window.prompt()` does not exist in Electron. The button called it to ask for a name, it
+  threw, and the click died there. The name is now asked in a small **child window** of the
+  main process (`renderer/ask.html` + `preload-ask.js`), the same technique the password
+  screen already used. Renaming went through the same broken `prompt()` and is fixed too.
+- Even with the dialog replaced, a dialog drawn in the window's own renderer is **invisible**:
+  each account is a `WebContentsView`, and those paint on top of everything. The child window
+  has no such problem.
+- **Only one copy runs now.** Opening the app twice started two processes on the same data
+  folder; they fought over the same Chromium `LOCK` files (`Could not open the quota database,
+  resetting`, `Failed to delete the database: Database IO error`) and overwrote each other's
+  `accounts.json`, which is how a newly added account vanished from the list. The second
+  launch now just focuses the running window.
+- An account stuck more than 45 s on the spinner is repaired automatically, at most twice.
+
+**Added**
+- `wa5.log` next to `accounts.json`: every load event, plus whether a `+` click actually
+  arrived (`+ button: click received`). The packaged app has no terminal, and without this a
+  "nothing happens" report cannot be diagnosed.
+- Windows, macOS and Linux builds: `npm run build:win`, `build:mac`, `build:mac:intel`,
+  `build:linux`. `assets/icon.ico` is generated from the same artwork.
+- The CI workflow packages `windows-latest` alongside macOS and attaches both zips to a
+  release; the `package` job is now `package-macos`.
+
+**Notes**
+- Windows keeps the normal window frame, so the 34 px strip reserved for the macOS traffic
+  lights is hidden there (`body.framed`). Touch ID is macOS only and falls back to the
+  password.
+- The Windows build is packaged but has not been run on real Windows hardware yet.
+
 ## 1.4.0 — English everywhere
 
 The whole repository is now in English: code, comments, identifiers, UI strings, file names

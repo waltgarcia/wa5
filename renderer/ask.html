@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+  <title>WA5</title>
+  <style>
+    :root { --accent: #00a884; --text: #e9edef; --muted: #8696a0; --panel: #202c33; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      background: var(--panel);
+      color: var(--text);
+      font-family: -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+      overflow: hidden;
+      user-select: none;
+    }
+    /* The window is frameless-ish (hidden inset) so the whole body drags. */
+    body {
+      -webkit-app-region: drag;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 26px 22px 20px;
+    }
+    #title {
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--text);
+      margin-top: 10px;
+      cursor: default;
+    }
+    #name {
+      -webkit-app-region: no-drag;
+      width: 100%;
+      margin-top: 12px;
+      padding: 10px 12px;
+      border: 1px solid #2f3b43;
+      border-radius: 8px;
+      background: #0b141a;
+      color: var(--text);
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      user-select: text;
+    }
+    #name:focus { border-color: var(--accent); }
+    .actions {
+      -webkit-app-region: no-drag;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    button {
+      padding: 8px 18px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    #cancel { background: transparent; color: var(--muted); }
+    #cancel:hover { color: var(--text); }
+    #ok { background: var(--accent); color: #0b141a; }
+    #ok:hover { filter: brightness(1.08); }
+  </style>
+</head>
+<body>
+  <form id="form">
+    <p id="title"></p>
+    <input id="name" type="text" autocomplete="off" spellcheck="false" />
+    <div class="actions">
+      <button id="cancel" type="button">Cancelar</button>
+      <button id="ok" type="submit">Aceptar</button>
+    </div>
+  </form>
+  <script src="ask.js"></script>
+</body>
+</html>

@@ -150,3 +150,64 @@ body { display: flex; }
 #empty h1 { font-size: 22px; margin-bottom: 10px; font-weight: 700; letter-spacing: -.2px; }
 #empty p { color: var(--muted); font-size: 14px; line-height: 1.6; }
 #empty b { color: var(--accent); }
+
+/* Own replacement for window.prompt(), which Electron no longer supports. */
+.ask-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, .55);
+  -webkit-app-region: no-drag;
+}
+.ask-box {
+  width: 340px;
+  padding: 20px;
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .55);
+}
+.ask-title {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text);
+  margin-bottom: 14px;
+}
+.ask-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #2f3b43;
+  border-radius: 8px;
+  background: #0b141a;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  user-select: text;
+}
+.ask-input:focus { border-color: var(--accent); }
+.ask-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+.ask-actions button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+.ask-cancel { background: transparent; color: var(--muted); }
+.ask-cancel:hover { color: var(--text); }
+.ask-ok { background: var(--accent); color: #0b141a; }
+.ask-ok:hover { filter: brightness(1.08); }
+
+/* Windows / Linux: no traffic lights to make room for, and the app has a real frame. */
+body.framed #drag-area { display: none; }
+body.framed #sidebar { padding-top: 10px; }

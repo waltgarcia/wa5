@@ -1,6 +1,6 @@
 # WA5
 
-**Up to five WhatsApp Web accounts at the same time, in a single macOS app.**
+**Up to five WhatsApp Web accounts at the same time, in a single app (macOS, Windows and Linux).**
 
 Each account runs in its own Chromium session —separate cookies, `localStorage` and
 `IndexedDB`— so no number ever sees or overwrites another's session. Switch accounts with
@@ -36,7 +36,7 @@ one click or with `⌘1` … `⌘5`.
 
 ## Install
 
-Requires macOS 11 or later and Node 18 or later.
+Requires Node 18 or later. macOS 11+, Windows 10+ or a modern Linux desktop.
 
 ```bash
 git clone https://github.com/waltgarcia/wa5.git
@@ -45,7 +45,7 @@ npm install
 npm start
 ```
 
-### Build the .app
+### Build the macOS .app
 
 ```bash
 npm run build           # leaves dist/WA5-darwin-arm64/WA5.app
@@ -55,6 +55,41 @@ cp -R dist/WA5-darwin-arm64/WA5.app /Applications/
 
 The first time you open the unsigned `.app`, macOS will ask for confirmation:
 right-click the icon → **Open**.
+
+Use `npm run build:mac:intel` for an Intel Mac.
+
+### Build for Windows
+
+```bash
+npm run build:win       # leaves dist/WA5-win32-x64/WA5.exe
+```
+
+Copy that folder to the Windows machine and run `WA5.exe`; it is portable, there is no
+installer and no admin rights needed. The first launch shows SmartScreen's "Windows
+protected your PC" warning because the binary is unsigned: **More info → Run anyway**.
+
+Windows gets a normal window frame (no macOS traffic lights), so the extra strip at the top
+of the sidebar is hidden automatically there. Touch ID does not exist on Windows: the app
+falls back to the entry password, which is the same code path.
+
+### Build for Linux
+
+```bash
+npm run build:linux     # leaves dist/WA5-linux-x64/
+```
+
+### Data locations
+
+| System | Folder |
+|---|---|
+| macOS | `~/Library/Application Support/WA5/` |
+| Windows | `%APPDATA%\WA5\` |
+| Linux | `~/.config/WA5/` |
+
+That folder holds `accounts.json`, `access.json`, `control.json` and `Partitions/`. It is the
+only thing you have to copy to move your accounts to another machine (the WhatsApp sessions
+travel with it, so no QR code is needed again on the same OS).
+
 
 ## Entry password and Touch ID
 
@@ -91,7 +126,8 @@ After 5 failed attempts in a row the app waits 30 seconds before accepting anoth
 
 1. Open the app, set up access and enter. An account called **Personal** is created for you.
 2. On your phone: WhatsApp → **Linked devices** → *Link a device*.
-3. Scan the QR code. Repeat with the **+** in the sidebar for each new account.
+3. Scan the QR code. Repeat with the **+** in the sidebar for each new account: it asks for
+   the name in a small window, then opens the QR.
 4. Right-click a circle in the sidebar: rename, reload, repair, log out, zoom or remove.
 
 | Shortcut | Action |
@@ -107,6 +143,22 @@ After 5 failed attempts in a row the app waits 30 seconds before accepting anoth
 It is that partition's cache or service worker, not your session. Right-click the account →
 **Repair if stuck loading**. It clears cache and service workers but keeps cookies and
 `IndexedDB`, so **you do not need to scan the QR code again**.
+
+The app now does this on its own: an account that stays more than **45 seconds** on the
+spinner is repaired automatically, at most twice. Nothing to press.
+
+### Only one copy runs at a time
+
+Opening WA5 while it is already running (double click on the icon, Launchpad, a second
+session) does **not** start a second copy: the existing window comes to the front. Two copies
+sharing the same data folder fight over the same Chromium `LOCK` files, and the visible
+symptom is exactly a new account that never finishes loading —plus a third account that
+disappears from the list, because each copy saves its own idea of the account list over the
+other's.
+
+If you do end up needing to diagnose one, every load event is written to `wa5.log` inside the
+data folder, including whether the **+** click even arrived.
+
 
 ## Local control for agents (optional)
 
@@ -222,8 +274,10 @@ profiles.
 
 ## Status
 
-macOS, Apple Silicon and Intel. It should work on Linux and Windows without changes, but it
-is untested; PRs are welcome.
+macOS is tested end to end (Apple Silicon and Intel). The Windows build is produced and
+packaged by CI and cross-built locally, but it has **not** been run on real Windows hardware
+yet: treat it as a first working port, not as verified. Linux shares that same path. Bug
+reports and PRs welcome.
 
 ## License
 

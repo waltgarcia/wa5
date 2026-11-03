@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  package:
+  package-macos:
     runs-on: macos-latest
     strategy:
       matrix:
@@ -33,8 +33,10 @@ jobs:
           node --check preload.js
           node --check preload-login.js
           node --check preload-wa.js
+          node --check preload-ask.js
           node --check renderer/renderer.js
           node --check renderer/login.js
+          node --check renderer/ask.js
           node --check mcp/servidor.mjs
 
       - name: Package app (${{ matrix.arch }})
@@ -61,8 +63,48 @@ jobs:
           path: dist/*.zip
           if-no-files-found: error
 
+  package-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check syntax
+        run: |
+          node --check main.js
+          node --check control.js
+          node --check security.js
+          node --check preload.js
+          node --check preload-login.js
+          node --check preload-wa.js
+          node --check preload-ask.js
+          node --check renderer/renderer.js
+          node --check renderer/login.js
+          node --check renderer/ask.js
+          node --check mcp/servidor.mjs
+
+      - name: Package app (win32 x64)
+        run: |
+          npx electron-packager . WA5 --platform=win32 --arch=x64 --out=dist --overwrite --app-bundle-id=io.github.wa5 --icon=assets/icon.ico "--ignore=^/(dist|docs|\.github|mcp)"
+
+      - name: Zip
+        run: Compress-Archive -Path dist/WA5-win32-x64 -DestinationPath dist/wa5-windows-x64.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wa5-windows-x64
+          path: dist/wa5-windows-x64.zip
+          if-no-files-found: error
+
   release:
-    needs: package
+    needs: [package-macos, package-windows]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:

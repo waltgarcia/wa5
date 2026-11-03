@@ -5,6 +5,13 @@ const footer = document.getElementById('footer');
 
 let state = { accounts: [], activeId: null, max: 5 };
 
+// The 34 px strip at the top of the sidebar only exists to make room for the macOS
+// traffic lights; on Windows the normal title bar already does that job.
+if (window.wa.platform && window.wa.platform !== 'darwin') {
+  document.body.classList.add('framed');
+}
+
+
 function initial(name) {
   const clean = (name || '?').trim();
   return clean ? clean[0].toUpperCase() : '?';
@@ -49,10 +56,14 @@ function render() {
 }
 
 addButton.addEventListener('click', async () => {
+  // Logged so a "the + button does nothing" report can be told apart from a click
+  // that macOS eats (drag region) instead of guessing.
+  if (window.wa.uiLog) window.wa.uiLog('+ button: click received');
   if (state.accounts.length >= state.max) return;
-  const name = prompt('What is this account called? (e.g. Personal, Clinic, Essity)');
-  if (name === null) return;
-  await window.wa.add(name);
+  // The name is asked in a child window from the main process: a dialog drawn here
+  // would be hidden behind the WhatsApp view.
+  const result = await window.wa.add();
+  if (result && result.ok === false && result.error) alert(result.error);
 });
 
 window.wa.onAccounts((data) => {
@@ -70,13 +81,9 @@ window.wa.onLoadState(({ id, loadState }) => {
   if (a) { a.loadState = loadState; render(); }
 });
 
-window.wa.onRenameRequest(async (id) => {
-  const account = state.accounts.find(x => x.id === id);
-  if (!account) return;
-  const name = prompt('New name for this account:', account.name);
-  if (name === null) return;
-  await window.wa.rename(id, name);
-});
+// Renaming is handled in the main process now, in the same child window that asks
+// for a new account's name.
+
 
 window.wa.state().then((data) => {
   state = data;
