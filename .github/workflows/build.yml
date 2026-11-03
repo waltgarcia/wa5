@@ -92,7 +92,7 @@ jobs:
 
       - name: Package app (win32 x64)
         run: |
-          npx electron-packager . WA5 --platform=win32 --arch=x64 --out=dist --overwrite --app-bundle-id=io.github.wa5 --icon=assets/icon.ico "--ignore=^/(dist|docs|\.github|mcp)"
+          npx electron-packager . WA5 --platform=win32 --arch=x64 --out=dist --overwrite --app-bundle-id=io.github.wa5 --icon=assets/icon.ico --ignore=^/dist --ignore=^/docs --ignore=^/.github --ignore=^/mcp
 
       - name: Zip
         run: Compress-Archive -Path dist/WA5-win32-x64 -DestinationPath dist/wa5-windows-x64.zip

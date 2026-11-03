@@ -22,10 +22,10 @@
   "scripts": {
     "start": "electron .",
     "build": "npm run build:mac",
-    "build:mac": "electron-packager . WA5 --platform=darwin --arch=arm64 --overwrite --out=dist --app-bundle-id=io.github.wa5 --icon=assets/icon.icns --ignore=\"^/(dist|docs|\\.github|mcp)\"",
-    "build:mac:intel": "electron-packager . WA5 --platform=darwin --arch=x64 --overwrite --out=dist --app-bundle-id=io.github.wa5 --icon=assets/icon.icns --ignore=\"^/(dist|docs|\\.github|mcp)\"",
-    "build:win": "electron-packager . WA5 --platform=win32 --arch=x64 --overwrite --out=dist --app-bundle-id=io.github.wa5 --icon=assets/icon.ico --ignore=\"^/(dist|docs|\\.github|mcp)\"",
-    "build:linux": "electron-packager . WA5 --platform=linux --arch=x64 --overwrite --out=dist --ignore=\"^/(dist|docs|\\.github|mcp)\"",
+    "build:mac": "electron-packager . WA5 --platform=darwin --arch=arm64 --overwrite --out=dist --app-bundle-id=io.github.wa5 --icon=assets/icon.icns --ignore=^/dist --ignore=^/docs --ignore=^/.github --ignore=^/mcp",
+    "build:mac:intel": "electron-packager . WA5 --platform=darwin --arch=x64 --overwrite --out=dist --app-bundle-id=io.github.wa5 --icon=assets/icon.icns --ignore=^/dist --ignore=^/docs --ignore=^/.github --ignore=^/mcp",
+    "build:win": "electron-packager . WA5 --platform=win32 --arch=x64 --overwrite --out=dist --app-bundle-id=io.github.wa5 --icon=assets/icon.ico --ignore=^/dist --ignore=^/docs --ignore=^/.github --ignore=^/mcp",
+    "build:linux": "electron-packager . WA5 --platform=linux --arch=x64 --overwrite --out=dist --ignore=^/dist --ignore=^/docs --ignore=^/.github --ignore=^/mcp",
     "mcp": "node mcp/servidor.mjs"
   },
   "devDependencies": {
